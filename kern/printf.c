@@ -25,11 +25,17 @@ vcprintf(const char *fmt, va_list ap)
 int
 cprintf(const char *fmt, ...)
 {
+	// typedef __builtin_va_list va_list;
 	va_list ap;
-	int cnt;
 
+	int cnt;
+	
+	// #define va_start(ap, last) __builtin_va_start(ap, last)
 	va_start(ap, fmt);
+
 	cnt = vcprintf(fmt, ap);
+
+	// #define va_end(ap) __builtin_va_end(ap)
 	va_end(ap);
 
 	return cnt;

@@ -71,13 +71,16 @@ bad:
 void
 readseg(uint32_t pa, uint32_t count, uint32_t offset)
 {
+	// pa = 0x10000, count = 8 * 512, offset = 0
 	uint32_t end_pa;
 
 	end_pa = pa + count;
 
 	// round down to sector boundary
 	pa &= ~(SECTSIZE - 1);
-
+	// 0001 0000 0000 0000 0000
+	// 1111 1111 1110 0000 0000
+	// 0000 0000 0001 1111 1111
 	// translate from bytes to sectors, and kernel starts at sector 1
 	offset = (offset / SECTSIZE) + 1;
 
