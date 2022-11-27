@@ -52,8 +52,8 @@ enum {
 
 void	mem_init(void);
 
-void	page_init(void);
-struct PageInfo *page_alloc(int alloc_flags);
+void	page_init(void); // todo 
+struct PageInfo *page_alloc(int alloc_flags); // todo
 void	page_free(struct PageInfo *pp);
 int	page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm);
 void	page_remove(pde_t *pgdir, void *va);
