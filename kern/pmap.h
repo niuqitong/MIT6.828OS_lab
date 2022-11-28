@@ -63,9 +63,9 @@ void	page_decref(struct PageInfo *pp);
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
 static inline physaddr_t
-page2pa(struct PageInfo *pp)
+page2pa(struct PageInfo *pp) // page to physical address
 {
-	return (pp - pages) << PGSHIFT;
+	return (pp - pages) << PGSHIFT; // PGSHIFT 12
 }
 
 static inline struct PageInfo*
