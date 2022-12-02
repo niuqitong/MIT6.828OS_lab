@@ -53,8 +53,8 @@ enum {
 
 void	mem_init(void);
 
-void	page_init(void);
-struct PageInfo *page_alloc(int alloc_flags);
+void	page_init(void); // todo 
+struct PageInfo *page_alloc(int alloc_flags); // todo
 void	page_free(struct PageInfo *pp);
 int	page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm);
 void	page_remove(pde_t *pgdir, void *va);
@@ -67,9 +67,9 @@ int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
 void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
 
 static inline physaddr_t
-page2pa(struct PageInfo *pp)
+page2pa(struct PageInfo *pp) // page to physical address
 {
-	return (pp - pages) << PGSHIFT;
+	return (pp - pages) << PGSHIFT; // PGSHIFT 12
 }
 
 static inline struct PageInfo*

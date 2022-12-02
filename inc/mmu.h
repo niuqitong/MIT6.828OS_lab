@@ -30,7 +30,7 @@
 #define PGNUM(la)	(((uintptr_t) (la)) >> PTXSHIFT)
 
 // page directory index
-#define PDX(la)		((((uintptr_t) (la)) >> PDXSHIFT) & 0x3FF)
+#define PDX(la)		((((uintptr_t) (la)) >> PDXSHIFT) & 0x3FF) // la >> 22 & 0011 1111 1111b
 
 // page table index
 #define PTX(la)		((((uintptr_t) (la)) >> PTXSHIFT) & 0x3FF)
