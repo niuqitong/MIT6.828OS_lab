@@ -13,8 +13,8 @@
 #include <kern/monitor.h>
 
 struct Env *envs = NULL;		// All environments
-struct Env *curenv = NULL;		// The current env
-static struct Env *env_free_list;	// Free environment list
+struct Env *curenv = NULL;		// The current executing env
+static struct Env *env_free_list;	// Free environment list, all of the inactive Env structures
 					// (linked by Env->env_link)
 
 #define ENVGENSHIFT	12		// >= LOGNENV
@@ -116,6 +116,19 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
+	struct Env* pre = NULL;
+	for (int i = 0; i < NENV; i++) {
+		struct Env* cur = envs + i;
+		cur->env_id = 0;
+		if (i == 0) {
+			env_free_list = cur;
+		}
+		if (pre != NULL) {
+			pre->env_link = cur;
+		}
+		cur->env_link = NULL;
+		pre = cur;
+	}
 
 	// Per-CPU part of the initialization
 	env_init_percpu();
@@ -179,6 +192,12 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	p->pp_ref += 1;
+	e->env_pgdir = (pde_t*)page2kva(p);
+	boot_map_region(e->env_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	boot_map_region(e->env_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
+	boot_map_region(e->env_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	boot_map_region(e->env_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
