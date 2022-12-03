@@ -194,11 +194,11 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
 	p->pp_ref += 1;
 	e->env_pgdir = (pde_t*)page2kva(p);
-	boot_map_region(e->env_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
-	boot_map_region(e->env_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
-	boot_map_region(e->env_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
-	boot_map_region(e->env_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
-
+	// boot_map_region(e->env_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	// boot_map_region(e->env_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
+	// boot_map_region(e->env_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	// boot_map_region(e->env_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
+	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -286,6 +286,16 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	void* begin = ROUNDDOWN(va, PGSIZE);
+	void* end = ROUNDUP(va + len, PGSIZE);
+	while (begin < end) {
+		struct Env* pp = page_alloc(0);
+		if (pp == NULL) {
+			panic("page allocation failed at region_alloc");
+		}
+		page_insert(e->env_pgdir, pp, begin, PTE_W | PTE_U);
+		begin += PGSIZE;
+	}
 }
 
 //
@@ -294,12 +304,12 @@ region_alloc(struct Env *e, void *va, size_t len)
 // This function is ONLY called during kernel initialization,
 // before running the first user-mode environment.
 //
-// This function loads all loadable segments from the ELF binary image
+// This function **loads all loadable segments from the ELF binary image**
 // into the environment's user memory, starting at the appropriate
 // virtual addresses indicated in the ELF program header.
-// At the same time it clears to zero any portions of these segments
+// At the same time it ***clears to zero any portions of these segments
 // that are marked in the program header as being mapped
-// but not actually present in the ELF file - i.e., the program's bss section.
+// but ***not actually present in the ELF file*** - i.e., the program's bss section.
 //
 // All this is very similar to what our boot loader does, except the boot
 // loader also needs to read the code from disk.  Take a look at
@@ -342,11 +352,29 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+	struct Elf* elfhdr = (struct Elf*)binary;
+	if (elfhdr != ELF_MAGIC)
+		panic("elf magic error");
+	struct Proghdr *ph, *eph;
+	// ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+	ph = (struct Proghdr*)((uint8_t*)elfhdr + elfhdr->e_phoff);
+	eph = ph + elfhdr->e_phnum;
+	lcr3(PADDR(e->env_pgdir));
+	for (; ph < eph; ph++) {
+		if (ph->p_type != ELF_PROG_LOAD)
+			continue;
+		region_alloc(e, ph->p_va, ph->p_memsz);
+		memset(ph->p_va, 0, ph->p_memsz);
+		memcpy(ph->p_va, binary + ph->p_offset, ph->p_filesz);
+	}
+	e->env_tf.tf_eip = elfhdr->e_entry;
+	lcr3(PADDR(kern_pgdir));
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-
+	
 	// LAB 3: Your code here.
+	region_alloc(e, USTACKTOP - PGSIZE, PGSIZE);
 }
 
 //
@@ -360,6 +388,13 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env* new_env;
+	int res = env_alloc(&new_env, 0);
+	if (res < 0) {
+		panic("env_alloc fails at env_create");
+	}
+	load_icode(new_env, binary);
+	new_env->env_type = type;
 }
 
 //
@@ -476,7 +511,14 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-
-	panic("env_run not yet implemented");
+	if (curenv != NULL && curenv->env_status == ENV_RUNNING) {
+		curenv->env_status = ENV_RUNNABLE;
+	}
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs += 1;
+	lcr3(PADDR(curenv->env_pgdir));
+	env_pop_tf(&curenv->env_tf);
+	// panic("env_run not yet implemented");
 }
 
