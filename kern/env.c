@@ -289,7 +289,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 	void* begin = ROUNDDOWN(va, PGSIZE);
 	void* end = ROUNDUP(va + len, PGSIZE);
 	while (begin < end) {
-		struct Env* pp = page_alloc(0);
+		struct PageInfo* pp = page_alloc(0);
 		if (pp == NULL) {
 			panic("page allocation failed at region_alloc");
 		}
@@ -353,7 +353,7 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 	struct Elf* elfhdr = (struct Elf*)binary;
-	if (elfhdr != ELF_MAGIC)
+	if (elfhdr->e_magic != ELF_MAGIC)
 		panic("elf magic error");
 	struct Proghdr *ph, *eph;
 	// ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
@@ -363,9 +363,9 @@ load_icode(struct Env *e, uint8_t *binary)
 	for (; ph < eph; ph++) {
 		if (ph->p_type != ELF_PROG_LOAD)
 			continue;
-		region_alloc(e, ph->p_va, ph->p_memsz);
-		memset(ph->p_va, 0, ph->p_memsz);
-		memcpy(ph->p_va, binary + ph->p_offset, ph->p_filesz);
+		region_alloc(e, (void*)ph->p_va, ph->p_memsz);
+		memset((void*)ph->p_va, 0, ph->p_memsz);
+		memcpy((void*)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 	}
 	e->env_tf.tf_eip = elfhdr->e_entry;
 	lcr3(PADDR(kern_pgdir));
@@ -374,7 +374,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 	
 	// LAB 3: Your code here.
-	region_alloc(e, USTACKTOP - PGSIZE, PGSIZE);
+	region_alloc(e, (void*)(USTACKTOP - PGSIZE), PGSIZE);
 }
 
 //
