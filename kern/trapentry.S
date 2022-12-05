@@ -38,7 +38,7 @@
 	.align 2;							\
 	name:								\
 	pushl $0;							\
-	pushl $(num);							\
+	pushl $(num);							\ // It pushes a trap number onto the stack
 	jmp _alltraps
 
 .text
@@ -69,7 +69,7 @@
  * Lab 3: Your code here for _alltraps
  */
 
-_alltraps:
+_alltraps: // tf_ss，tf_esp，tf_eflags，tf_cs，tf_eip，tf_err在中断发生时由处理器压入
 	pushl %ds
 	pushl %es
 	pushal
@@ -77,5 +77,5 @@ _alltraps:
 	popl %ds
 	pushl $GD_KD
 	popl %es
-	pushl %esp
+	pushl %esp // pass argument to trap() through stack
 	call trap

@@ -359,7 +359,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
 	ph = (struct Proghdr*)((uint8_t*)elfhdr + elfhdr->e_phoff);
 	eph = ph + elfhdr->e_phnum;
-	lcr3(PADDR(e->env_pgdir));
+	lcr3(PADDR(e->env_pgdir)); // use the page directory of env
 	for (; ph < eph; ph++) {
 		if (ph->p_type != ELF_PROG_LOAD)
 			continue;

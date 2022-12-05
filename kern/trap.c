@@ -22,7 +22,7 @@ static struct Trapframe *last_tf;
  */
 struct Gatedesc idt[256] = { { 0 } };
 struct Pseudodesc idt_pd = {
-	sizeof(idt) - 1, (uint32_t) idt
+	sizeof(idt) - 1, (uint32_t) idt // limit, base
 };
 
 
@@ -118,12 +118,12 @@ trap_init_percpu(void)
 					sizeof(struct Taskstate) - 1, 0);
 	gdt[GD_TSS0 >> 3].sd_s = 0;
 
-	// Load the TSS selector (like other segment selectors, the
+	// Load the TSS selector to the tss selector register (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
 	ltr(GD_TSS0);
 
-	// Load the IDT
-	lidt(&idt_pd);
+	// Load the IDT to the idt register
+	lidt(&idt_pd); // 
 }
 
 void
@@ -177,6 +177,8 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	// tf_trapno is pushed by TRAPHANDLER
+	// after TRAPHANDLER and _alltrap everything of the argument, tf, is set up respectively
 	if (tf->tf_trapno == T_PGFLT) {
 		page_fault_handler(tf);
 		return;
