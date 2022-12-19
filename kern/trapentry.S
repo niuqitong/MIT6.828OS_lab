@@ -38,13 +38,14 @@
 	.align 2;							\
 	name:								\
 	pushl $0;							\
-	pushl $(num);							\ // It pushes a trap number onto the stack
+	pushl $(num);			/*It pushes a trap number onto the stack */				\
 	jmp _alltraps
 
 .text
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
+ * 
  */
 
 	TRAPHANDLER_NOEC(th0, 0)
