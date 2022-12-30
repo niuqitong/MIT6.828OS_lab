@@ -230,6 +230,8 @@ mem_init(void)
 
 	boot_map_region(kern_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
 
+	// Initialize the SAM-related parts of the memory map
+	mem_init_mp();
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -278,6 +280,13 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	for (int i = 0; i < NCPU; i++) {
+		boot_map_region(kern_pgdir, 
+			KSTACKTOP - KSTKSIZE - i * (KSTKSIZE + KSTKGAP), 
+			KSTKSIZE, 
+			PADDR(percpu_kstacks[i]), 
+			PTE_W);
+	}
 
 }
 
@@ -320,9 +329,15 @@ page_init(void)
 	size_t i;
 	size_t n_pg_iohole = (EXTPHYSMEM - IOPHYSMEM) / PGSIZE;
 	size_t kernel_end_page = PADDR(boot_alloc(0)) / PGSIZE;
+	size_t pg_id = MPENTRY_PADDR / PGSIZE;
 	for (i = 0; i < npages; i++) {
 
 		if (i == 0) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+			continue;
+		}
+		if (i == pg_id) {
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
 			continue;
@@ -621,7 +636,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// beginning of the MMIO region.  Because this is static, its
 	// value will be preserved between calls to mmio_map_region
 	// (just like nextfree in boot_alloc).
-	static uintptr_t base = MMIOBASE;
+	static uintptr_t base = MMIOBASE; // MMIOLIM - PTSIZE
 
 	// Reserve size bytes of virtual memory starting at base and
 	// map physical pages [pa,pa+size) to virtual addresses
@@ -641,7 +656,15 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	void* start = (void*)base;
+	size_t pg_aligned_size = ROUNDUP(size, PGSIZE);
+	if (base + pg_aligned_size >= MMIOLIM)
+		panic("out of mmiolim");
+	boot_map_region(kern_pgdir, base, pg_aligned_size, pa, PTE_PCD | PTE_PWT | PTE_W);
+	base += pg_aligned_size;
+	return start;
+
+	// panic("mmio_map_region not implemented");
 }
 
 static uintptr_t user_mem_check_addr;

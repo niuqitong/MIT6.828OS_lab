@@ -16,7 +16,7 @@
 #include <kern/spinlock.h>
 
 struct Env *envs = NULL;		// All environments
-struct Env *curenv = NULL;		// The current executing env
+// struct Env *curenv = NULL;		// The current executing env
 static struct Env *env_free_list;	// Free environment list, all of the inactive Env structures
 					// (linked by Env->env_link)
 
