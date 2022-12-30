@@ -45,7 +45,9 @@ i386_init(void)
 	// Your code here:
 
 	// Starting non-boot CPUs
+	lock_kernel();
 	boot_aps();
+	// unlock_kernel();
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
@@ -103,7 +105,9 @@ mp_main(void)
 	env_init_percpu();
 	trap_init_percpu();
 	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up
-
+	lock_kernel();
+	sched_yield();
+	// unlock_kernel();
 	// Now that we have finished some basic setup, call sched_yield()
 	// to start running processes on this CPU.  But make sure that
 	// only one CPU can enter the scheduler at a time!
