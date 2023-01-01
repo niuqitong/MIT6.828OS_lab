@@ -54,7 +54,10 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_primes, ENV_TYPE_USER);
+	// ENV_CREATE(user_primes, ENV_TYPE_USER);
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
+	ENV_CREATE(user_yield, ENV_TYPE_USER);
 #endif // TEST*
 
 	// Schedule and run the first user environment!
@@ -102,17 +105,17 @@ mp_main(void)
 	cprintf("SMP: CPU %d starting\n", cpunum());
 
 	lapic_init();
-	env_init_percpu();
-	trap_init_percpu();
-	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up
-	lock_kernel();
-	sched_yield();
-	// unlock_kernel();
+	env_init_percpu();			//设置GDT，每个CPU都需要执行一次
+	trap_init_percpu();			//安装TSS描述符，每个CPU都需要执行一次
+	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up，需要原子操作
+
 	// Now that we have finished some basic setup, call sched_yield()
 	// to start running processes on this CPU.  But make sure that
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+	lock_kernel();
+	sched_yield();
 
 	// Remove this after you finish Exercise 6
 	for (;;);

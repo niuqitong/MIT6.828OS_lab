@@ -656,13 +656,20 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	void* start = (void*)base;
-	size_t pg_aligned_size = ROUNDUP(size, PGSIZE);
-	if (base + pg_aligned_size >= MMIOLIM)
-		panic("out of mmiolim");
-	boot_map_region(kern_pgdir, base, pg_aligned_size, pa, PTE_PCD | PTE_PWT | PTE_W);
-	base += pg_aligned_size;
-	return start;
+	size = ROUNDUP(pa+size, PGSIZE);
+	pa = ROUNDDOWN(pa, PGSIZE);
+	size -= pa;
+	if (base+size >= MMIOLIM) panic("not enough memory");
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
+	base += size;
+	return (void*) (base - size);
+	// void* start = (void*)base;
+	// size_t pg_aligned_size = ROUNDUP(size, PGSIZE);
+	// if (base + pg_aligned_size >= MMIOLIM)
+	// 	panic("out of mmiolim");
+	// boot_map_region(kern_pgdir, base, pg_aligned_size, pa, PTE_PCD | PTE_PWT | PTE_W);
+	// base += pg_aligned_size;
+	// return start;
 
 	// panic("mmio_map_region not implemented");
 }
