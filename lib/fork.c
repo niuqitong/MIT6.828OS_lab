@@ -27,9 +27,8 @@ pgfault(struct UTrapframe *utf)
 	// LAB 4: Your code here.
 	// if (err != FEC_WR || (uvpt[PGNUM(addr)] & PTE_COW) == 0)
 	// 	panic("pgfault not on write to COW page");
-	if (!((err & FEC_WR) && (uvpt[PGNUM(addr)] & PTE_COW))) { //只有因为写操作写时拷贝的地址这中情况，才可以抢救。否则一律panic
-		panic("pgfault():not cow");
-	}
+	if (! ( (err & FEC_WR) && (uvpt[PGNUM(addr)] & PTE_COW)))
+        panic("Neither the fault is a write nor COW page. \n");
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -37,27 +36,16 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-	/*
-	envid_t curenv_id = thisenv->env_id;
-	r = sys_page_alloc(curenv_id, (void*)PFTEMP, PTE_P | PTE_U | PTE_W);
+	addr = ROUNDDOWN(addr, PGSIZE);
+	if ((r = sys_page_alloc(0, (void*)PFTEMP, PTE_P | PTE_U | PTE_W)) < 0)
+		panic("alloc fail");
+	memcpy((void*)PFTEMP, addr, PGSIZE);
+	r = sys_page_map(0, (void*)PFTEMP, 0, addr, PTE_U | PTE_P | PTE_W);
 	if (r < 0)
-		panic("sys_page_alloc at pgfault() fails");
-	addr = ROUNDDOWN(addr, PGSIZE);
-	memmove((void*)PFTEMP, addr, PGSIZE);
-	r = sys_page_unmap(curenv_id, addr);
-	if (r < 0) panic("unmap fail at pgfault()");
-	r = sys_page_map(curenv_id, (void*)PFTEMP, curenv_id, addr, PTE_P | PTE_U | PTE_W);
-	if (r < 0) panic("map fails");
-	r = sys_page_unmap(curenv_id, (void*)PFTEMP);
-	if (r < 0) panic("unmap PFTEMP failds");*/
-	addr = ROUNDDOWN(addr, PGSIZE);
-	if ((r = sys_page_map(0, addr, 0, PFTEMP, PTE_U|PTE_P)) < 0)		//将当前进程PFTEMP也映射到当前进程addr指向的物理页
-		panic("sys_page_map: %e", r);
-	if ((r = sys_page_alloc(0, addr, PTE_P|PTE_U|PTE_W)) < 0)	//令当前进程addr指向新分配的物理页
-		panic("sys_page_alloc: %e", r);
-	memmove(addr, PFTEMP, PGSIZE);								//将PFTEMP指向的物理页拷贝到addr指向的物理页
-	if ((r = sys_page_unmap(0, PFTEMP)) < 0)					//解除当前进程PFTEMP映射
-		panic("sys_page_unmap: %e", r);
+		panic("map fail");
+	r = sys_page_unmap(0, (void*)PFTEMP);
+	if (r < 0)
+		panic("unmap fail");
 	// panic("pgfault not implemented");
 }
 
@@ -78,33 +66,23 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	/*
+	
 	envid_t cur = thisenv->env_id;
 	void* addr = (void*)(pn * PGSIZE);
 	pte_t pte = uvpt[pn];
 	int perm = PTE_P | PTE_U;
 	if ((pte & PTE_W) || (pte & PTE_COW)) {
 		perm |= PTE_COW;
-		r = sys_page_map(cur, addr, envid, addr, perm);
+		r = sys_page_map(0, addr, envid, addr, perm);
+		if (r < 0) return r;
+		r = sys_page_map(0, addr, 0, addr, perm);
 		if (r < 0) return r;
 	}
-	if (perm & PTE_COW) {
-		r = sys_page_map(cur, addr, cur, addr, perm);
+	else {
+		r = sys_page_map(0, addr, envid, addr, perm);
 		if (r < 0) return r;
 	}
 	// panic("duppage not implemented");
-	return 0;*/
-	void *addr = (void*) (pn * PGSIZE);
-	if (uvpt[pn] & PTE_SHARE) {
-		sys_page_map(0, addr, envid, addr, PTE_SYSCALL);		//对于表示为PTE_SHARE的页，拷贝映射关系，并且两个进程都有读写权限
-	} else if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) { //对于UTOP以下的可写的或者写时拷贝的页，拷贝映射关系的同时，需要同时标记当前进程和子进程的页表项为PTE_COW
-		if ((r = sys_page_map(0, addr, envid, addr, PTE_COW|PTE_U|PTE_P)) < 0)
-			panic("sys_page_map：%e", r);
-		if ((r = sys_page_map(0, addr, 0, addr, PTE_COW|PTE_U|PTE_P)) < 0)
-			panic("sys_page_map：%e", r);
-	} else {
-		sys_page_map(0, addr, envid, addr, PTE_U|PTE_P);	//对于只读的页，只需要拷贝映射关系即可
-	}
 	return 0;
 }
 
@@ -128,62 +106,38 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	/*
-	envid_t envid = sys_exofork();
-	extern void _pgfault_upcall(void);
-	set_pgfault_handler(pgfault);
-	if (envid < 0) return envid;
-	if (envid == 0) {
-		thisenv = &envs[ENVX(sys_getenvid())];
-		return 0;
-	} 
-	int i, j, pn, r;
-	for (i = PDX(UTEXT); i < PDX(USTACKTOP); i++) {
-		if (uvpd[i] & PTE_P) {
-			for (j = 0; j < NPTENTRIES; j++) {
-				pn = PGNUM(PGADDR(i, j, 0));
-				if (pn == PGNUM(UXSTACKTOP - PGSIZE))
-					break;
-				if (uvpt[pn] & PTE_P) {
-					duppage(envid, pn);
-				}
-			}
-		}
-	}
-	if ((r = sys_page_alloc(envid, (void*)(UXSTACKTOP - PGSIZE), PTE_U | PTE_W | PTE_P)) < 0) {
-		return r;
-	}
-	sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
-	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0) {
-		panic("sys_env_set_status fails with return value %e", r);
-	}
-	return envid;*/
-	extern void _pgfault_upcall(void);
-	set_pgfault_handler(pgfault);	//设置缺页处理函数
-	envid_t envid = sys_exofork();	//系统调用，只是简单创建一个Env结构，复制当前用户环境寄存器状态，UTOP以下的页目录还没有建立
-	if (envid == 0) {				//子进程将走这个逻辑
-		thisenv = &envs[ENVX(sys_getenvid())];
-		return 0;
-	}
-	if (envid < 0) {
-		panic("sys_exofork: %e", envid);
-	}
+	envid_t envid;
+    int r;
+    size_t i, j, pn;
+    // Set up our page fault handler
+    set_pgfault_handler(pgfault);
+    
+    envid = sys_exofork();
+    if (envid < 0) 
+        panic("sys_exofork failed: %e", envid);
+    
+    if (envid == 0) {
+        // child
+        thisenv = &envs[ENVX(sys_getenvid())];
+        return 0;
+    }
+    
+    for (pn = PGNUM(UTEXT); pn < PGNUM(USTACKTOP); pn++) {
+        if ( (uvpd[pn >> 10] & PTE_P) && (uvpt[pn] & PTE_P)) {
+            if ( (r = duppage(envid, pn)) < 0)
+                return r;
+        }
+    }
+    if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W)) < 0)
+        return r;
+    extern void _pgfault_upcall(void);
+    if ((r = sys_env_set_pgfault_upcall(envid, _pgfault_upcall)) < 0)
+        return r;
 
-	uint32_t addr;
-	for (addr = 0; addr < USTACKTOP; addr += PGSIZE) {
-		if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P) //为什么uvpt[pagenumber]能访问到第pagenumber项页表条目：https://pdos.csail.mit.edu/6.828/2018/labs/lab4/uvpt.html
-			&& (uvpt[PGNUM(addr)] & PTE_U)) {
-			duppage(envid, PGNUM(addr));	//拷贝当前进程映射关系到子进程
-		}
-	}
-	int r;
-	if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP-PGSIZE), PTE_P | PTE_W | PTE_U)) < 0)	//为子进程分配异常栈
-		panic("sys_page_alloc: %e", r);
-	sys_env_set_pgfault_upcall(envid, _pgfault_upcall);		//为子进程设置_pgfault_upcall
-
-	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)	//设置子进程为ENV_RUNNABLE状态
-		panic("sys_env_set_status: %e", r);
-	return envid;
+    if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+        panic("sys_env_set_status: %e", r);
+    
+    return envid;
 	// panic("fork not implemented");
 }
 

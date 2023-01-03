@@ -355,46 +355,46 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 	
-	// if (curenv->env_pgfault_upcall) {
-	// 	uint32_t uxtop = UXSTACKTOP;
-	// 	struct UTrapframe* utf;
-
-	// 	if (tf->tf_esp <= UXSTACKTOP - 1 && tf->tf_esp >= UXSTACKTOP - PGSIZE) {
-	// 		uxtop = tf->tf_esp;
-	// 		utf = (struct UTrapframe*)(uxtop - sizeof(struct UTrapframe) - 4);
-	// 	} else {
-	// 		utf = (struct UTrapframe*)(uxtop - sizeof (struct UTrapframe));
-	// 	}
-	// 	user_mem_assert(curenv, (void*)utf, sizeof(struct UTrapframe), PTE_W | PTE_U);
-	// 	utf->utf_fault_va = fault_va;
-	// 	utf->utf_err = tf->tf_err;
-	// 	utf->utf_regs = tf->tf_regs;
-	// 	utf->utf_eip = tf->tf_eip;
-	// 	utf->utf_eflags = tf->tf_eflags;
-	// 	utf->utf_esp = tf->tf_esp;
-	// 	curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
-	// 	curenv->env_tf.tf_esp = (uintptr_t)utf;
-	// 	env_run(curenv);
-	// } 
 	if (curenv->env_pgfault_upcall) {
-		uintptr_t stacktop = UXSTACKTOP;
-		if (UXSTACKTOP - PGSIZE < tf->tf_esp && tf->tf_esp < UXSTACKTOP) {
-			stacktop = tf->tf_esp;
-		}
-		uint32_t size = sizeof(struct UTrapframe) + sizeof(uint32_t);
-		user_mem_assert(curenv, (void *)stacktop - size, size, PTE_U | PTE_W);
-		struct UTrapframe *utr = (struct UTrapframe *)(stacktop - size);
-		utr->utf_fault_va = fault_va;
-		utr->utf_err = tf->tf_err;
-		utr->utf_regs = tf->tf_regs;
-		utr->utf_eip = tf->tf_eip;
-		utr->utf_eflags = tf->tf_eflags;
-		utr->utf_esp = tf->tf_esp;				//UXSTACKTOP栈上需要保存发生缺页异常时的%esp和%eip
+		uint32_t uxtop = UXSTACKTOP;
+		struct UTrapframe* utf;
 
+		if (tf->tf_esp <= UXSTACKTOP - 1 && tf->tf_esp >= UXSTACKTOP - PGSIZE) {
+			uxtop = tf->tf_esp;
+			utf = (struct UTrapframe*)(uxtop - sizeof(struct UTrapframe) - 4);
+		} else {
+			utf = (struct UTrapframe*)(uxtop - sizeof (struct UTrapframe));
+		}
+		user_mem_assert(curenv, (void*)utf, sizeof(struct UTrapframe), PTE_W | PTE_P);
+		utf->utf_fault_va = fault_va;
+		utf->utf_err = tf->tf_trapno;
+		utf->utf_regs = tf->tf_regs;
+		utf->utf_eip = tf->tf_eip;
+		utf->utf_eflags = tf->tf_eflags;
+		utf->utf_esp = tf->tf_esp;
 		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
-		curenv->env_tf.tf_esp = (uintptr_t)utr;
-		env_run(curenv);			//重新进入用户态
-	}
+		curenv->env_tf.tf_esp = (uintptr_t)utf;
+		env_run(curenv);
+	} 
+	// if (curenv->env_pgfault_upcall) {
+	// 	uintptr_t stacktop = UXSTACKTOP;
+	// 	if (UXSTACKTOP - PGSIZE < tf->tf_esp && tf->tf_esp < UXSTACKTOP) {
+	// 		stacktop = tf->tf_esp;
+	// 	}
+	// 	uint32_t size = sizeof(struct UTrapframe) + sizeof(uint32_t);
+	// 	user_mem_assert(curenv, (void *)stacktop - size, size, PTE_U | PTE_W);
+	// 	struct UTrapframe *utr = (struct UTrapframe *)(stacktop - size);
+	// 	utr->utf_fault_va = fault_va;
+	// 	utr->utf_err = tf->tf_err;
+	// 	utr->utf_regs = tf->tf_regs;
+	// 	utr->utf_eip = tf->tf_eip;
+	// 	utr->utf_eflags = tf->tf_eflags;
+	// 	utr->utf_esp = tf->tf_esp;				//UXSTACKTOP栈上需要保存发生缺页异常时的%esp和%eip
+
+	// 	curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+	// 	curenv->env_tf.tf_esp = (uintptr_t)utr;
+	// 	env_run(curenv);			//重新进入用户态
+	// }
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
