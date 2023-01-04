@@ -87,6 +87,15 @@ trap_init(void)
 	void th13();
 	void th14();
 	void th16();
+
+	// IRQ handlers
+	void timer();
+	void kbd();
+	void serial();
+	void spurious();
+	void ide();
+	void error();
+
 	void th48(); // system call
 
 	SETGATE(idt[0], 0, GD_KT, th0, 0);		//格式如下：SETGATE(gate, istrap, sel, off, dpl)，定义在inc/mmu.h中
@@ -104,6 +113,13 @@ trap_init(void)
 	SETGATE(idt[13], 0, GD_KT, th13, 0);
 	SETGATE(idt[14], 0, GD_KT, th14, 0);
 	SETGATE(idt[16], 0, GD_KT, th16, 0);
+
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, timer, 3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD],      0, GD_KT, kbd,     3);
+    SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL],   0, GD_KT, serial,  3);
+    SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, spurious, 3);
+    SETGATE(idt[IRQ_OFFSET + IRQ_IDE],      0, GD_KT, ide,     3);
+    SETGATE(idt[IRQ_OFFSET + IRQ_ERROR],    0, GD_KT, error,   3);
 
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, th48, 3);
 	// Per-CPU setup 
@@ -215,7 +231,7 @@ print_regs(struct PushRegs *regs)
 	cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
 
-static void
+static void // calls sched_yield() to ﬁnd and run a different environment whenever a clock interrupt takes place.
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
@@ -233,6 +249,11 @@ trap_dispatch(struct Trapframe *tf)
 	if (tf->tf_trapno == T_SYSCALL) {
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx,
 										tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+		return;
+	}
+	if (tf->tf_trapno == IRQ_TIMER + IRQ_OFFSET) {
+		lapic_eoi(); //
+		sys_yield();
 		return;
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
@@ -376,25 +397,6 @@ page_fault_handler(struct Trapframe *tf)
 		curenv->env_tf.tf_esp = (uintptr_t)utf;
 		env_run(curenv);
 	} 
-	// if (curenv->env_pgfault_upcall) {
-	// 	uintptr_t stacktop = UXSTACKTOP;
-	// 	if (UXSTACKTOP - PGSIZE < tf->tf_esp && tf->tf_esp < UXSTACKTOP) {
-	// 		stacktop = tf->tf_esp;
-	// 	}
-	// 	uint32_t size = sizeof(struct UTrapframe) + sizeof(uint32_t);
-	// 	user_mem_assert(curenv, (void *)stacktop - size, size, PTE_U | PTE_W);
-	// 	struct UTrapframe *utr = (struct UTrapframe *)(stacktop - size);
-	// 	utr->utf_fault_va = fault_va;
-	// 	utr->utf_err = tf->tf_err;
-	// 	utr->utf_regs = tf->tf_regs;
-	// 	utr->utf_eip = tf->tf_eip;
-	// 	utr->utf_eflags = tf->tf_eflags;
-	// 	utr->utf_esp = tf->tf_esp;				//UXSTACKTOP栈上需要保存发生缺页异常时的%esp和%eip
-
-	// 	curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
-	// 	curenv->env_tf.tf_esp = (uintptr_t)utr;
-	// 	env_run(curenv);			//重新进入用户态
-	// }
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
