@@ -332,26 +332,30 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	struct Env* e;
 	if ((r = envid2env(envid, &e, 0)) < 0) 			return -E_BAD_ENV;
 	if (!e->env_ipc_recving) 						return -E_IPC_NOT_RECV;
-	if (srcva < UTOP) {
+	pte_t* pte;
+	struct PageInfo* pg = NULL;
+	if (srcva < (void*)UTOP) {
 		if (ROUNDDOWN(srcva, PGSIZE) != srcva) 		return -E_INVAL;
 		if (((perm & PTE_U) == 0) || ((perm & PTE_P) == 0)) 
 													return -E_INVAL;
-		pte_t* pte;
-		struct PageInfo* pg;
-		pg = page_lookup(thisenv->env_pgdir, srcva, &pte);
+		
+		pg = page_lookup(curenv->env_pgdir, srcva, &pte);
 		if (pg == NULL) 							return -E_INVAL;
-		if ((perm & PTE_W) && (!(pte & PTE_W))) 	return -E_INVAL;
+		if ((perm & PTE_W) && (!((*pte) & PTE_W))) 	return -E_INVAL;
 	}
-	if (e->env_ipc_dstva != NULL && e->env_ipc_dstva < UTOP) {
-		if ((r = sys_page_map(0, srcva, envid, e->env_ipc_dstva, perm)) < 0) {
+	if (e->env_ipc_dstva != NULL && e->env_ipc_dstva < (void*)UTOP) {
+		// if ((r = sys_page_map(0, srcva, envid, e->env_ipc_dstva, perm)) < 0) {
+		// 	return r;
+		// }
+		if ((r = page_insert(e->env_pgdir, pg, e->env_ipc_dstva, perm)) < 0)
 			return r;
-		}
 		e->env_ipc_perm = perm;
 	}
 	e->env_ipc_recving = false;
-	e->env_ipc_from = thisenv->env_id;
+	e->env_ipc_from = curenv->env_id;
 	e->env_ipc_value = value;
 	e->env_status = ENV_RUNNABLE;
+	e->env_tf.tf_regs.reg_eax = 0; // 
 	return 0;
 
 
@@ -375,13 +379,14 @@ sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
 
-	if (dstva < UTOP) {
+	if (dstva < (void*)UTOP) {
 		if ((ROUNDDOWN(dstva, PGSIZE) != dstva))
 			return -E_INVAL;
-		thisenv->env_ipc_dstva = dstva;
-	} else thisenv->env_ipc_dtsva = NULL;
-	thisenv->env_status = ENV_NOT_RUNNABLE;
-	thisenv->env_ipc_recving = true;
+		// curenv->env_ipc_dstva = dstva;
+	} 
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_ipc_recving = true;
 	sys_yield();
 
 	// panic("sys_ipc_recv not implemented");
@@ -438,7 +443,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		ret = sys_ipc_recv((void*)a1);
 		break;
 	case SYS_ipc_try_send:
-		ret = sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void*)a3, (unsigned)perm);
+		ret = sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void*)a3, (unsigned)a4);
 		break;
 	default:
 		return -E_INVAL;

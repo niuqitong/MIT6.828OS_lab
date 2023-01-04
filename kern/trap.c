@@ -253,7 +253,7 @@ trap_dispatch(struct Trapframe *tf)
 	}
 	if (tf->tf_trapno == IRQ_TIMER + IRQ_OFFSET) {
 		lapic_eoi(); //
-		sys_yield();
+		sched_yield();
 		return;
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
