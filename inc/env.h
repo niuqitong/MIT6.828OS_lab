@@ -26,16 +26,16 @@ typedef int32_t envid_t;
 // stands for the current environment.
 
 #define LOG2NENV		10
-#define NENV			(1 << LOG2NENV)
-#define ENVX(envid)		((envid) & (NENV - 1))
+#define NENV			(1 << LOG2NENV) // 1024, max number of process supported
+#define ENVX(envid)		((envid) & (NENV - 1)) // get the index of the process
 
 // Values of env_status in struct Env
 enum {
-	ENV_FREE = 0,
-	ENV_DYING,
-	ENV_RUNNABLE,
-	ENV_RUNNING,
-	ENV_NOT_RUNNABLE
+	ENV_FREE = 0, // inactive
+	ENV_DYING,  
+	ENV_RUNNABLE, // on the waitlist, ready to run
+	ENV_RUNNING,  // currently running
+	ENV_NOT_RUNNABLE // active but not ready, e.g., waiting for some resource
 };
 
 // Special environment types

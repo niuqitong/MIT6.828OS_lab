@@ -22,17 +22,17 @@ struct CpuInfo {
 	uint8_t cpu_id;                 // Local APIC ID; index into cpus[] below
 	volatile unsigned cpu_status;   // The status of the CPU
 	struct Env *cpu_env;            // The currently-running environment.
-	struct Taskstate cpu_ts;        // Used by x86 to find stack for interrupt
+	struct Taskstate cpu_ts;        // TSS, Used by x86 to find stack for interrupt
 };
 
 // Initialized in mpconfig.c
 extern struct CpuInfo cpus[NCPU];
 extern int ncpu;                    // Total number of CPUs in the system
 extern struct CpuInfo *bootcpu;     // The boot-strap processor (BSP)
-extern physaddr_t lapicaddr;        // Physical MMIO address of the local APIC
+extern physaddr_t lapicaddr;        // Physical MMIO address of the local APIC, typedef uint32_t physaddr_t
 
 // Per-CPU kernel stacks
-extern unsigned char percpu_kstacks[NCPU][KSTKSIZE];
+extern unsigned char percpu_kstacks[NCPU][KSTKSIZE]; // #define KSTKSIZE	(8*PGSIZE)
 
 int cpunum(void);
 #define thiscpu (&cpus[cpunum()])

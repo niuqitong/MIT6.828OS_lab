@@ -29,7 +29,7 @@
 
 #define RELOC(x) ((x) - KERNBASE)
 #define MPBOOTPHYS(s) ((s) - mpentry_start + MPENTRY_PADDR)
-
+# MPBOOTPHYS(s) get the physical address of s
 .set PROT_MODE_CSEG, 0x8	# kernel code segment selector
 .set PROT_MODE_DSEG, 0x10	# kernel data segment selector
 

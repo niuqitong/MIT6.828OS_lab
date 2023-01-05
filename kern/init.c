@@ -45,7 +45,9 @@ i386_init(void)
 	// Your code here:
 
 	// Starting non-boot CPUs
+	lock_kernel();
 	boot_aps();
+	// unlock_kernel();
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
@@ -79,7 +81,7 @@ boot_aps(void)
 	struct CpuInfo *c;
 
 	// Write entry code to unused memory at MPENTRY_PADDR
-	code = KADDR(MPENTRY_PADDR);
+	code = KADDR(MPENTRY_PADDR); // 0x7000
 	memmove(code, mpentry_start, mpentry_end - mpentry_start);
 
 	// Boot each AP one at a time
@@ -90,6 +92,7 @@ boot_aps(void)
 		// Tell mpentry.S what stack to use 
 		mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
 		// Start the CPU at mpentry_start
+		// 发送STARTUP的IPI信号到AP的LAPIC单元来一个个地激活AP
 		lapic_startap(c->cpu_id, PADDR(code));
 		// Wait for the CPU to finish some basic setup in mp_main()
 		while(c->cpu_status != CPU_STARTED)
@@ -106,15 +109,17 @@ mp_main(void)
 	cprintf("SMP: CPU %d starting\n", cpunum());
 
 	lapic_init();
-	env_init_percpu();
-	trap_init_percpu();
-	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up
+	env_init_percpu();			//设置GDT，每个CPU都需要执行一次
+	trap_init_percpu();			//安装TSS描述符，每个CPU都需要执行一次
+	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up，需要原子操作
 
 	// Now that we have finished some basic setup, call sched_yield()
 	// to start running processes on this CPU.  But make sure that
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+	lock_kernel();
+	sched_yield();
 
 	// Remove this after you finish Exercise 6
 	for (;;);

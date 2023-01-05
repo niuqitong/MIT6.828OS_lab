@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "types.h": "c",
+        "stdio.h": "c",
+        "stdarg.h": "c",
+        "monitor.h": "c"
+    }
+}

@@ -10,24 +10,24 @@ struct Elf {
 	uint16_t e_machine;
 	uint32_t e_version;
 	uint32_t e_entry;
-	uint32_t e_phoff;
+	uint32_t e_phoff; // program header offset
 	uint32_t e_shoff;
 	uint32_t e_flags;
 	uint16_t e_ehsize;
 	uint16_t e_phentsize;
-	uint16_t e_phnum;
+	uint16_t e_phnum; // ph_num保存了总共有多少Segment
 	uint16_t e_shentsize;
 	uint16_t e_shnum;
 	uint16_t e_shstrndx;
 };
 
-struct Proghdr {
+struct Proghdr { // program header
 	uint32_t p_type;
 	uint32_t p_offset;
-	uint32_t p_va;
+	uint32_t p_va;  // virtual address
 	uint32_t p_pa;
 	uint32_t p_filesz;
-	uint32_t p_memsz;
+	uint32_t p_memsz; // size in memory
 	uint32_t p_flags;
 	uint32_t p_align;
 };
