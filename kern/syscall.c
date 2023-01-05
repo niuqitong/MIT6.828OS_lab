@@ -92,7 +92,7 @@ sys_exofork(void)
 	}
 	e->env_tf = curenv->env_tf;			//寄存器状态和当前进程一致
 	e->env_status = ENV_NOT_RUNNABLE;   //目前还不能运行
-	e->env_tf.tf_regs.reg_eax = 0;		//新的进程从sys_exofork()的返回值应该为0
+	e->env_tf.tf_regs.reg_eax = 0;		//子进程从sys_exofork()的返回值应该为0
 	return e->env_id;
 	// panic("sys_exofork not implemented");
 }
