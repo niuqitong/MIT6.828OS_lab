@@ -183,17 +183,17 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
     // LAB 5: Your code here.
 	int r;
-	uint32_t* ppdiskbno;
-	r = file_block_walk(f, filebno, &ppdiskbno, 1);
+	uint32_t* pdiskbno;
+	r = file_block_walk(f, filebno, &pdiskbno, 1);
 	if (r < 0) return r;
 
-	if (*ppdiskbno == 0) { // ???
+	if (*pdiskbno == 0) { // ??? block number == 0
 		r = alloc_block();
 		if (r < 0) return r;
-		*ppdiskbno = r;
+		*pdiskbno = r;
 		flush_block(diskaddr(r));
 	}
-	*blk = diskaddr(*ppdiskbno);
+	*blk = diskaddr(*pdiskbno);
 
 	return 0;
 

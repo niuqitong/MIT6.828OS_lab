@@ -242,6 +242,16 @@ trap_dispatch(struct Trapframe *tf)
 		page_fault_handler(tf);
 		return;
 	}
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
+		lapic_eoi(); //
+		kbd_intr();
+		return;
+	}
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
+		lapic_eoi(); //
+		serial_intr();
+		return;
+	}
 	if (tf->tf_trapno == T_BRKPT) {
 		monitor(tf);
 		return;
