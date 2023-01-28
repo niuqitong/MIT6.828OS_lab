@@ -55,7 +55,7 @@ entry:
 	# Load the physical address of entry_pgdir into cr3.  entry_pgdir
 	# is defined in entrypgdir.c.
 	movl	$(RELOC(entry_pgdir)), %eax
-	movl	%eax, %cr3
+	movl	%eax, %cr3 // cr3 寄存器保存页目录表的物理基地址
 	# Turn on paging.
 	movl	%cr0, %eax
 	orl	$(CR0_PE|CR0_PG|CR0_WP), %eax

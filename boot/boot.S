@@ -47,7 +47,7 @@ seta20.2:
   # effective memory map does not change during the switch.
   lgdt    gdtdesc
   movl    %cr0, %eax
-  orl     $CR0_PE_ON, %eax
+  orl     $CR0_PE_ON, %eax # cr0最低位表示是否为保护模式, 1: 保护模式; 0: 实模式
   movl    %eax, %cr0
   
   # Jump to next instruction, but in 32-bit code segment.

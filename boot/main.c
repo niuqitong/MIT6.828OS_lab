@@ -57,7 +57,9 @@ bootmain(void)
 
 	// call the entry point from the ELF header
 	// note: does not return!
-	((void (*)(void)) (ELFHDR->e_entry))();
+	((void (*)(void)) (ELFHDR->e_entry))(); 
+	// call   *0x10018
+	// 0x10018:	0x0010000c 内核代码开始执行处
 
 bad:
 	outw(0x8A00, 0x8A00);
@@ -123,6 +125,8 @@ readsect(void *dst, uint32_t offset)
 	waitdisk();
 
 	// read a sector
-	insl(0x1F0, dst, SECTSIZE/4);
+	insl(0x1F0, dst, SECTSIZE/4); 
+	// insl函数实质上就是从0x1F0端口连续读128个dword（即512个字节，也就是一个扇区的字节数）
+	// 到目的地址。其中，0x1F0是数据寄存器，读写硬盘数据都必须通过这个寄存器。
 }
 
