@@ -40,7 +40,7 @@ bootmain(void)
 {
 	struct Proghdr *ph, *eph;
 
-	// read 1st page off disk
+	// read 1st page (4KB) off disk, the ELF header of the kernel img
 	readseg((uint32_t) ELFHDR, SECTSIZE*8, 0);
 
 	// is this a valid ELF?
@@ -48,7 +48,12 @@ bootmain(void)
 		goto bad;
 
 	// load each program segment (ignores ph flags)
-	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+	/*
+		ELF头包含program header table, 这个表存放着所有段的信息
+		ELFHDR是ELF头地址, e_phoff代表program header table距离头的偏移量
+		e_phnum: 表中项的个数, 即程序中段的个数
+	*/
+	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff); // ph即为program header table表头地址
 	eph = ph + ELFHDR->e_phnum;
 	for (; ph < eph; ph++)
 		// p_pa is the load address of this segment (as well

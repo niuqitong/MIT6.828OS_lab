@@ -45,7 +45,7 @@ seta20.2:
   # and segment translation that makes virtual addresses 
   # identical to their physical addresses, so that the 
   # effective memory map does not change during the switch.
-  lgdt    gdtdesc
+  lgdt    gdtdesc // 将GDT表的长度和起始地址加载到全局描述符表寄存器GDTR(48位)中, 长度16位, 起始地址32位  
   movl    %cr0, %eax
   orl     $CR0_PE_ON, %eax # cr0最低位表示是否为保护模式, 1: 保护模式; 0: 实模式
   movl    %eax, %cr0
@@ -79,7 +79,7 @@ gdt:
   SEG(STA_X|STA_R, 0x0, 0xffffffff)	# code seg
   SEG(STA_W, 0x0, 0xffffffff)	        # data seg
 
-gdtdesc:
+gdtdesc: # gdt description
   .word   0x17                            # sizeof(gdt) - 1
-  .long   gdt                             # address gdt
+  .long   gdt                             # address gdt, gdt的起始地址
 
