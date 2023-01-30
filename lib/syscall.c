@@ -41,6 +41,28 @@ void
 sys_cputs(const char *s, size_t len)
 {
 	syscall(SYS_cputs, 0, (uint32_t)s, len, 0, 0, 0);
+	/*
+		800b4b:	55                   	push   %ebp
+		800b4c:	89 e5                	mov    %esp,%ebp
+		800b4e:	57                   	push   %edi
+		800b4f:	56                   	push   %esi
+		800b50:	53                   	push   %ebx
+			asm volatile("int %1\n"
+		800b51:	b8 00 00 00 00       	mov    $0x0,%eax
+		800b56:	8b 55 08             	mov    0x8(%ebp),%edx
+		800b59:	8b 4d 0c             	mov    0xc(%ebp),%ecx
+		800b5c:	89 c3                	mov    %eax,%ebx
+		800b5e:	89 c7                	mov    %eax,%edi
+		800b60:	89 c6                	mov    %eax,%esi
+		800b62:	cd 30                	int    $0x30
+			syscall(SYS_cputs, 0, (uint32_t)s, len, 0, 0, 0);
+		}
+		800b64:	5b                   	pop    %ebx
+		800b65:	5e                   	pop    %esi
+		800b66:	5f                   	pop    %edi
+		800b67:	5d                   	pop    %ebp
+		800b68:	c3                   	ret    
+	*/
 }
 
 int

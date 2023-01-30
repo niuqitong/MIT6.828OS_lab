@@ -365,6 +365,10 @@ load_icode(struct Env *e, uint8_t *binary)
 			continue;
 		region_alloc(e, (void*)ph->p_va, ph->p_memsz);
 		memset((void*)ph->p_va, 0, ph->p_memsz);
+		// cprintf("va: %u, offset: %u\n", (void*)ph->p_va, (void*)(binary + ph->p_offset));
+		// va: 2097152, offset: 4027700016
+		// va: 8388640, offset: 4027720528
+		// va: 8396800, offset: 4027728688
 		memcpy((void*)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 	}
 	e->env_tf.tf_eip = elfhdr->e_entry;
@@ -474,7 +478,7 @@ void
 env_pop_tf(struct Trapframe *tf)
 {
 	asm volatile(
-		"\tmovl %0,%%esp\n"
+		"\tmovl %0,%%esp\n"  // 将%esp指向tf地址处
 		"\tpopal\n"
 		"\tpopl %%es\n"
 		"\tpopl %%ds\n"
