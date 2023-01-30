@@ -27,7 +27,7 @@
 // use PGADDR(PDX(la), PTX(la), PGOFF(la)).
 
 // page number field of address
-#define PGNUM(la)	(((uintptr_t) (la)) >> PTXSHIFT)
+#define PGNUM(la)	(((uintptr_t) (la)) >> PTXSHIFT) // 12
 
 // page directory index
 #define PDX(la)		((((uintptr_t) (la)) >> PDXSHIFT) & 0x3FF) // la >> 22 & 0011 1111 1111b

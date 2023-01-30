@@ -100,7 +100,7 @@ boot_alloc(uint32_t n)
 	// the first virtual address that the linker did *not* assign
 	// to any kernel code or global variables.
 	if (!nextfree) {
-		extern char end[];
+		extern char end[]; // end是bss段末尾，具体定义在kern/kernel.ld中
 		nextfree = ROUNDUP((char *) end, PGSIZE);
 	}
 
@@ -515,7 +515,9 @@ page_lookup(pde_t *pgdir, void *va, pte_t** pte_store)
 		*pte_store = pte;
 	
 	
-	return pa2page(PTE_ADDR(*pte));
+	return pa2page(PTE_ADDR(*pte)); 
+	// #define PTE_ADDR(pte)	((physaddr_t) (pte) & ~0xFFF)
+
 	
 
 	// return NULL;
