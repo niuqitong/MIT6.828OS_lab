@@ -86,13 +86,13 @@ sys_exofork(void)
 	// LAB 4: Your code here.
 
 	struct Env *e;
-	int ret = env_alloc(&e, curenv->env_id);    //分配一个Env结构
+	int ret = env_alloc(&e, curenv->env_id);    
 	if (ret < 0) {
 		return ret;
 	}
-	e->env_tf = curenv->env_tf;			//寄存器状态和当前进程一致
-	e->env_status = ENV_NOT_RUNNABLE;   //目前还不能运行
-	e->env_tf.tf_regs.reg_eax = 0;		//子进程从sys_exofork()的返回值应该为0
+	e->env_tf = curenv->env_tf;			
+	e->env_status = ENV_NOT_RUNNABLE;   
+	e->env_tf.tf_regs.reg_eax = 0;		// 子进程从sys_exofork()的返回值应该为0
 	return e->env_id;
 	// panic("sys_exofork not implemented");
 }
@@ -279,7 +279,7 @@ sys_page_unmap(envid_t envid, void *va)
 	if (va >= (void*)UTOP || ROUNDDOWN(va, PGSIZE) != va)
 		return -E_INVAL;
 	// struct PageInfo* pg;
-	page_remove(curenv->env_pgdir, va);
+	page_remove(e->env_pgdir, va);
 	return 0;
 
 	// panic("sys_page_unmap not implemented");
@@ -343,7 +343,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if (pg == NULL) 							return -E_INVAL;
 		if ((perm & PTE_W) && (!((*pte) & PTE_W))) 	return -E_INVAL;
 	}
-	if (e->env_ipc_dstva != NULL && e->env_ipc_dstva < (void*)UTOP) {
+	if (pg != NULL && e->env_ipc_dstva != NULL && e->env_ipc_dstva < (void*)UTOP) {
 		// if ((r = sys_page_map(0, srcva, envid, e->env_ipc_dstva, perm)) < 0) {
 		// 	return r;
 		// }
@@ -352,8 +352,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		e->env_ipc_perm = perm;
 	}
 	e->env_ipc_recving = false;
-	e->env_ipc_from = curenv->env_id;
-	e->env_ipc_value = value;
+	e->env_ipc_from = curenv->env_id; // envid of the sender
+	e->env_ipc_value = value; // data sent to e
 	e->env_status = ENV_RUNNABLE;
 	e->env_tf.tf_regs.reg_eax = 0; // 
 	return 0;
@@ -384,9 +384,9 @@ sys_ipc_recv(void *dstva)
 			return -E_INVAL;
 		// curenv->env_ipc_dstva = dstva;
 	} 
-	curenv->env_ipc_dstva = dstva;
+	curenv->env_ipc_dstva = dstva; // VA at which to map the received page
 	curenv->env_status = ENV_NOT_RUNNABLE;
-	curenv->env_ipc_recving = true;
+	curenv->env_ipc_recving = true; // curenv is blocked and receiving
 	sys_yield();
 
 	// panic("sys_ipc_recv not implemented");

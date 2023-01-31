@@ -134,9 +134,12 @@
 
 // Used for temporary page mappings.  Typed 'void*' for convenience
 #define UTEMP		((void*) PTSIZE)
+
 // Used for temporary page mappings for the user page-fault handler
 // (should not conflict with other temporary page mappings)
 #define PFTEMP		(UTEMP + PTSIZE - PGSIZE)
+
+
 // The location of the user-level STABS data structure
 #define USTABDATA	(PTSIZE / 2)
 

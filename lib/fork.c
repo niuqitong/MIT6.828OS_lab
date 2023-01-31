@@ -28,7 +28,7 @@ pgfault(struct UTrapframe *utf)
 	// if (err != FEC_WR || (uvpt[PGNUM(addr)] & PTE_COW) == 0)
 	// 	panic("pgfault not on write to COW page");
 	if (! ( (err & FEC_WR) && (uvpt[PGNUM(addr)] & PTE_COW)))
-        panic("Neither the fault is a write nor COW page. \n");
+        panic("the fault is a write on a COW page. \n");
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -67,9 +67,9 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	
-	envid_t cur = thisenv->env_id;
+	// envid_t cur = thisenv->env_id;
 	void* addr = (void*)(pn * PGSIZE);
-	pte_t pte = uvpt[pn];
+	pte_t pte = uvpt[pn]; // defined in lib/entry.S as global variables
 	int perm = PTE_P | PTE_U;
 	if ((pte & PTE_W) || (pte & PTE_COW)) {
 		perm |= PTE_COW;
@@ -110,8 +110,10 @@ fork(void)
     int r;
     size_t i, j, pn;
     // Set up our page fault handler
+	// The parent installs pgfault() as the C-level page fault handler
     set_pgfault_handler(pgfault);
-    
+
+    // The parent calls sys_exofork() to create a child environment
     envid = sys_exofork();
     if (envid < 0) 
         panic("sys_exofork failed: %e", envid);
@@ -121,19 +123,24 @@ fork(void)
         thisenv = &envs[ENVX(sys_getenvid())];
         return 0;
     }
-    
-    for (pn = PGNUM(UTEXT); pn < PGNUM(USTACKTOP); pn++) {
+	
+    for (pn = PGNUM(UTEXT); pn < PGNUM(USTACKTOP); pn++) { // copy the page mapping, instead of page contents
         if ( (uvpd[pn >> 10] & PTE_P) && (uvpt[pn] & PTE_P)) {
             if ( (r = duppage(envid, pn)) < 0)
                 return r;
         }
     }
+
+	// allocate a fresh page in the child for the exception stack
     if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W)) < 0)
         return r;
-    extern void _pgfault_upcall(void);
+
+	// The parent sets the user page fault entrypoint for the child to look like its own.
+    extern void _pgfault_upcall(void); // _pgfault_upcall is defined in pfentry.S
     if ((r = sys_env_set_pgfault_upcall(envid, _pgfault_upcall)) < 0)
         return r;
 
+	// The child is now ready to run, so the parent marks it runnable.
     if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
         panic("sys_env_set_status: %e", r);
     

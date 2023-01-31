@@ -73,6 +73,10 @@ void *mpentry_kstack;
 static void
 boot_aps(void)
 {
+	/*
+		copy the entry code to 0x7000 (MPENTRY_PADDR), 
+		but any unused, page-aligned physical address below 640KB would work.
+	*/
 	extern unsigned char mpentry_start[], mpentry_end[];
 	void *code;
 	struct CpuInfo *c;
@@ -89,7 +93,7 @@ boot_aps(void)
 		// Tell mpentry.S what stack to use 
 		mpentry_kstack = percpu_kstacks[c - cpus] + KSTKSIZE;
 		// Start the CPU at mpentry_start
-		// 发送STARTUP的IPI信号到AP的LAPIC单元来一个个地激活AP
+		// 发送STARTUP IPI信号到AP的LAPIC单元来一个个地激活AP
 		lapic_startap(c->cpu_id, PADDR(code));
 		// Wait for the CPU to finish some basic setup in mp_main()
 		while(c->cpu_status != CPU_STARTED)
@@ -119,7 +123,7 @@ mp_main(void)
 	sched_yield();
 
 	// Remove this after you finish Exercise 6
-	for (;;);
+	// for (;;);
 }
 
 /*
