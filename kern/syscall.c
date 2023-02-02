@@ -471,7 +471,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		ret = sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void*)a3, (unsigned)a4);
 		break;
 	case SYS_env_set_trapframe:
-		ret = sys_env_set_trapframe((envid_t)a1, (struct TrapFrame*)a2);
+		ret = sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2);
 		break;
 	default:
 		return -E_INVAL;

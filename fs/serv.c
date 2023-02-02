@@ -219,7 +219,7 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	struct OpenFile* o;
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
-	if ((r = file_read(o->o_file, (void*)(ret->ret_buf), req->req_n, o->o_fd->fd_offset)))
+	if ((r = file_read(o->o_file, (void*)(ret->ret_buf), req->req_n, o->o_fd->fd_offset)) < 0)
 		return r;
 	o->o_fd->fd_offset += r;
 	return r;
@@ -242,10 +242,20 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 	struct OpenFile* o;
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
-	if ((r = file_write(o->o_file, (void*)(req->req_buf), req->req_n, o->o_fd->fd_offset)))
-		return r;
-	o->o_fd->fd_offset += r;
-	return r;
+	// if ((r = file_write(o->o_file, (void*)(req->req_buf), req->req_n, o->o_fd->fd_offset)) < 0)
+	// 	return r;
+	// o->o_fd->fd_offset += r;
+	// return r;
+	int total = 0;
+	while (1) {
+		r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+		if (r < 0) return r;
+		total += r;
+		o->o_fd->fd_offset += r;
+		if (req->req_n <= total)
+			break;
+	}
+	return total;
 
 	// panic("serve_write not implemented");
 }

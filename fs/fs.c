@@ -187,7 +187,7 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 	r = file_block_walk(f, filebno, &pdiskbno, 1);
 	if (r < 0) return r;
 
-	if (*pdiskbno == 0) { // ??? block number == 0
+	if (*pdiskbno == 0) { // ??? address of block number == 0
 		r = alloc_block();
 		if (r < 0) return r;
 		*pdiskbno = r;

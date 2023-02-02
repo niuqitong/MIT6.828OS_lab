@@ -83,6 +83,8 @@ union Fsipc {
 		int req_fileid;
 		off_t req_size;
 	} set_size;
+	
+
 	struct Fsreq_read {
 		int req_fileid;
 		size_t req_n;
@@ -90,6 +92,8 @@ union Fsipc {
 	struct Fsret_read {
 		char ret_buf[PGSIZE];
 	} readRet;
+
+
 	struct Fsreq_write {
 		int req_fileid;
 		size_t req_n;
