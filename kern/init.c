@@ -109,8 +109,8 @@ mp_main(void)
 	cprintf("SMP: CPU %d starting\n", cpunum());
 
 	lapic_init();
-	env_init_percpu();			//设置GDT，每个CPU都需要执行一次
-	trap_init_percpu();			//安装TSS描述符，每个CPU都需要执行一次
+	env_init_percpu();			// set up GDT for every cpu
+	trap_init_percpu();			// set up TSS for every cpu
 	xchg(&thiscpu->cpu_status, CPU_STARTED); // tell boot_aps() we're up，需要原子操作
 
 	// Now that we have finished some basic setup, call sched_yield()

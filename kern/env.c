@@ -119,7 +119,6 @@ void
 env_init(void)
 {
 	// Set up envs array
-	// LAB 3: Your code here.
 	struct Env* pre = NULL;
 	for (int i = 0; i < NENV; i++) {
 		struct Env* cur = envs + i;
@@ -195,13 +194,8 @@ env_setup_vm(struct Env *e)
 	//	pp_ref for env_free to work correctly.
 	//    - The functions in kern/pmap.h are handy.
 
-	// LAB 3: Your code here.
 	p->pp_ref += 1;
 	e->env_pgdir = (pde_t*)page2kva(p);
-	// boot_map_region(e->env_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
-	// boot_map_region(e->env_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
-	// boot_map_region(e->env_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
-	// boot_map_region(e->env_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
 	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -266,7 +260,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// You will set e->env_tf.tf_eip later.
 
 	// Enable interrupts while in user mode.
-	// LAB 4: Your code here.
 	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
@@ -293,7 +286,6 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 static void
 region_alloc(struct Env *e, void *va, size_t len)
 {
-	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
 	//
 	// Hint: It is easier to use region_alloc if the caller can pass
