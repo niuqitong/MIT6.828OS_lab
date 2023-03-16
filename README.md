@@ -1,4 +1,4 @@
-# Boot up
+# 1. Boot up
 
 ## boot up steps
 ```c
@@ -25,7 +25,7 @@
 <img src="images/physical_memory_layout.png" alt="image-20230128160731593" style="zoom:50%;" />
 
 
-## BIOS
+## 1.1 BIOS
 
 BIOS位于从 0xF0000到0x100000的64KB
 
@@ -54,7 +54,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 <img src="images/Screenshot_20230128_041220.png" alt="Screenshot_20230128_041220" style="zoom:50%;" />
 
-## boot loader
+## 1.2 boot loader
 
 ### 从实模式切换到保护模式
 **实模式**
@@ -68,9 +68,18 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 **步骤**
 1. 开A20地址总线
-2. 将cr0最低位置为1, 表示开启保护模式
-3. 跳到下一条指令, 下一条指令在32位模式下运行
-4. 设置保护模式下的数据段寄存器
+2. 设置GDT表, 代码段选择子为 0x8, 数据段选择子为0x10
+   - GDT表共有3项, 第0项为空, 第1项为代码段, 第2项为数据段
+   - 代码段和数据段的base都为0, limit都为0xffffffff
+   - 段选择子格式:
+     - \[0, 1\]: RPL
+     - 2: TI(table indicator)
+     - \[3, 15\]: 在对应描述符表中的索引
+   - 所以代码段的索引为1, 数据段的索引为2
+   
+3. 将cr0最低位置为1, 表示开启保护模式
+4. 跳到下一条指令, 下一条指令在32位模式下运行
+5. 设置保护模式下的数据段寄存器
 
 ### 从磁盘中将内核读入内存
 
@@ -88,7 +97,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 ![Screenshot_20230128_041533](images/Screenshot_20230128_041533.png)
 
-## kernel
+## 1.3 kernel
 
 ### entry.s
 内核被链接到虚拟地址KERNBASE + 1MB, RELOC将链接地址映射到物理地址
@@ -136,7 +145,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 	# Set the stack pointer
 	movl	$(bootstacktop),%esp
-	
+
 	# 在内核编译链接成的ELF文件中保留了KSTKSIZE字节的空间，作为栈使用
 	.data
 	###################################################################
@@ -161,17 +170,23 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 3. **被调用函数**负责：将ebp入栈，esp的值赋给ebp。所以反汇编一个函数会发现开头两个指令都是`push %ebp, mov %esp,%ebp`。
 
 
-# Memory management
+# 2. Memory management
 
 ## 当前内存分布
 
 <img src="images/初始物理内存分布.png" alt="初始物理内存分布" style="zoom:150%;" />
 
-## 物理页及页目录初始化流程
+## 2.1 物理页及页目录初始化流程
 
 ![mem_init (1)](images/mem.png)
 
-## 页表
+### 物理页的管理
+
+![](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab2/lab2_7_%E6%80%BB%E7%BB%93_%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86.png)
+
+
+
+## 页表项 page table entry
 
 ![](https://pdos.csail.mit.edu/6.828/2018/readings/i386/fig5-10.gif)
 
@@ -179,21 +194,32 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 ![](https://img-blog.csdnimg.cn/20190819123551297.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzMyNDczNjg1,size_16,color_FFFFFF,t_70)
 
+## 2.2 初始化内核空间
+- 将UVPT映射到内核页目录的物理地址
+- 设置内核栈, 将[KSTACKTOP - KSTKSIZE, KSTACKTOP)映射到`PADDR(boot_stack)`
+  - 每个内核栈的下方有一块无效地址区域[KSTACKTOP - PTSIZE, KSTACKTOP - KSTKSIZE), 用于处理栈溢出. 这样发生stack overflow时, 会fault而不是改写有效地址. if the kernel overflows its stack, it will fault rather than overwrite memory.  Known as a "guard page".
+```c
+ *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+
+ *    KSTACKTOP        |     CPU0's Kernel Stack      | RW/--  KSTKSIZE   |
+ *                     | - - - - - - - - - - - - - - -|                   |
+ *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
+ *                     +------------------------------+                   |
+ *                     |     CPU1's Kernel Stack      | RW/--  KSTKSIZE   |
+ *                     | - - - - - - - - - - - - - - -|                   |
+ *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
+ *                     +------------------------------+                   |
+```
+- 将UPAGES映射到pages数组的物理地址
+- 将UENVS映射到envs数组的物理地址
+- 将虚拟地址[KERNBASE, 2&32)映射到物理地址[0, 2^32 - KERNBASE)
+- 将cr3寄存器设置为`PADDR(kern_pgdir)`
+- 设置cr0寄存器
 
 
-## 物理页的管理
-
-![](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab2/lab2_7_%E6%80%BB%E7%BB%93_%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86.png)
 
 
 
-
-
-## 最终虚拟地址到物理地址的映射
-
-![](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab2/lab2_5_lab2%E5%90%8E%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E5%88%B0%E7%89%A9%E7%90%86%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E6%98%A0%E5%B0%84.png)
-
-## 实现核心功能的函数
+## 2.3 实现核心功能的函数
 
 ### pgdir_walk() 
 
@@ -260,9 +286,12 @@ void page_remove(pde_t *pgdir, void *va) {
 
 }
 ```
+## 2.4 最终虚拟地址到物理地址的映射
+
+![](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab2/lab2_5_lab2%E5%90%8E%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E5%88%B0%E7%89%A9%E7%90%86%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E6%98%A0%E5%B0%84.png)
 
 
-# 用户级进程
+# 3. 用户级进程
 ## 系统调用
 
 系统调用的完成流程：以user/hello.c为例，其中调用了cprintf()，注意这是lib/print.c中的cprintf，该cprintf()最终会调用lib/syscall.c中的sys_cputs()，sys_cputs()又会调用lib/syscall.c中的syscall()，该函数将系统调用号放入%eax寄存器，五个参数依次放入in DX, CX, BX, DI, SI，然后**执行指令int 0x30，执行了`0x30`后或者发生异常（比如除0），都会直接跳到trapentry.s中**。 发生中断后，去IDT中查找中断处理函数，最终会走到kern/trap.c的trap_dispatch()中，我们根据中断号0x30，又会调用kern/syscall.c中的syscall()函数（注意这时候我们已经进入了内核模式CPL=0），在该函数中根据系统调用号调用kern/print.c中的cprintf()函数，该函数最终调用kern/console.c中的cputchar()将字符串打印到控制台。当trap_dispatch()返回后，trap()会调用`env_run(curenv);`，该函数前面讲过，会将curenv->env_tf结构中保存的寄存器快照重新恢复到寄存器中，这样又会回到用户程序系统调用之后的那条指令运行，只是这时候已经执行了系统调用并且寄存器eax中保存着系统调用的返回值。任务完成重新回到用户模式CPL=3。

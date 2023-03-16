@@ -78,7 +78,7 @@ spin:
 .p2align 2                                # force 4 byte alignment
 gdt:
   SEG_NULL				# null seg
-  SEG(STA_X|STA_R, 0x0, 0xffffffff)	# code seg
+  SEG(STA_X|STA_R, 0x0, 0xffffffff)	# code seg, SEG(segment type, base, limit)
   SEG(STA_W, 0x0, 0xffffffff)	        # data seg
 
 gdtdesc:
