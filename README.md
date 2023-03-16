@@ -22,7 +22,7 @@
 
 ## 地址空间分布
 
-<img src="images/physical_memory_layout.png" alt="image-20230128160731593" style="zoom:50%;" />
+<img src="images/physical_memory_layout.png" alt="image-20230128160731593" style="zoom: 33%;" />
 
 
 ## 1.1 BIOS
@@ -52,7 +52,7 @@ BIOS从硬盘中将boot loader所在的sector(512bytes)加载到内存0x7c00, �
 jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 ```
 
-<img src="images/Screenshot_20230128_041220.png" alt="Screenshot_20230128_041220" style="zoom:50%;" />
+<img src="images/Screenshot_20230128_041220.png" alt="Screenshot_20230128_041220" style="zoom: 33%;" />
 
 ## 1.2 boot loader
 
@@ -95,7 +95,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 ### boot loader执行完后的内存分布
 
-![Screenshot_20230128_041533](images/Screenshot_20230128_041533.png)
+<img src="images/Screenshot_20230128_041533.png" alt="Screenshot_20230128_041533" style="zoom: 50%;" />
 
 ## 1.3 kernel
 
@@ -192,7 +192,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 ### 虚拟地址转换为物理地址的过程
 
-![](https://img-blog.csdnimg.cn/20190819123551297.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzMyNDczNjg1,size_16,color_FFFFFF,t_70)
+<img src="https://img-blog.csdnimg.cn/20190819123551297.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzMyNDczNjg1,size_16,color_FFFFFF,t_70" style="zoom:50%;" />
 
 ## 2.2 初始化内核空间
 - 将UVPT映射到内核页目录的物理地址
@@ -292,7 +292,7 @@ void page_remove(pde_t *pgdir, void *va) {
 
 
 # 3. 用户级进程
-## 系统调用/中断/异常处理入口
+## 3.1 系统调用/中断/异常处理入口
 
 trapentry.s
 
@@ -342,7 +342,7 @@ IDT可以包含256个条目，对应于0-255的中断向量。每个条目占用
 
 IDTR（Interrupt Descriptor Table Register）寄存器存储了IDT的基地址和限制。IDT的基地址是一个32位值，指向IDT的起始地址。限制是一个16位值，表示IDT的字节大小减1。
 
-## 系统调用
+## 3.2 系统调用
 
 ### 为什么系统调用的DPL是3
 
@@ -378,7 +378,7 @@ DPL（Descriptor Privilege Level）是一个描述符的属性，用于指定访
 
 
 
-## 异常处理
+### 异常处理
 
 
 ```bash
@@ -467,19 +467,19 @@ gs             0x23	35
 <img src="https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab3/lab3_5_cpu%E6%A8%A1%E5%9E%8B.png" style="zoom:67%;" />
 
 
-# 4. 开启多CPU及抢占式多任务调度
+# 4. fork(), 进程调度, 进程间通信
 
 
 
+## 4.1 **进程调度**
 
+非抢占式: 进程通过系统调用sys_yield()主动放弃CPU. sys_yield()只是封装了sched_yield()
 
-## 实现**进程调度**算法。 
+抢占式: 借助时钟中断实现，时钟中断到来时，内核调用sched_yield(), 使用round robin策略, 选择另一个进程执行。
 
-一种是非抢占式式的，另一种是抢占式的，借助时钟中断实现，时钟中断到来时，内核调用sched_yield()选择另一个Env结构执行。
+## 4.2 写时拷贝fork（**进程创建**）
 
-## 实现写时拷贝fork（**进程创建**）。
-
-fork()是库函数，会调用sys_exofork(void)这个系统调用，该系统调用在内核中为子进程创建一个新的Env结构，然将父进程的寄存器状态复制给该Env结构，复制页表，对于PTE_W为1的页目录，复制的同时，设置PTE_COW标志。为父进程和子进程设置缺页处理函数，处理逻辑：当缺页中断发生是因为写写时拷贝的地址，分配一个新的物理页，然后将该虚拟地址映射到新的物理页。
+fork()是库函数，会调用sys_exofork(void)这个系统调用，该系统调用在内核中为子进程创建一个新的pcb结构，然**将父进程的寄存器状态复制给该pcb结构，复制所有PTE_P的页表项，对于PTE_W为1的页表项，复制的同时，设置PTE_COW标志。为父进程和子进程设置缺页处理函数，处理逻辑：当缺页中断发生是因为写写时拷贝的地址，分配一个新的物理页，然后将该虚拟地址映射到新的物理页。**
 原理总结如下：![非写时拷贝vs写时拷贝fork](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab4/lab4_3_%E5%86%99%E6%97%B6%E6%8B%B7%E8%B4%9Dfork.png)
 
 ### fork具体过程
@@ -496,7 +496,7 @@ fork()是库函数，会调用sys_exofork(void)这个系统调用，该系统调
 
     - 分配一个新的进程id给新创建的进程
 
-    - 如果已经分配运行所需的所有资源(内存映射等), 可将子进程设置为runnable
+    - 如果已经分配运行所需的所有资源(内存映射, 异常栈, 异常处理函数等), 可将子进程设置为runnable
 
     - 否则设置为unrunnable, 等待得到内存分配后再设置为runnable
 
@@ -505,7 +505,7 @@ fork()是库函数，会调用sys_exofork(void)这个系统调用，该系统调
       - 从内核栈中依次弹出保存的状态到各个寄存器中, cs, ip, sp, eax...
       - 并继续执行下面的指令
 
-    - 子进程由于复制了父进程的信息, ip寄存器可指明子进程开始执行的位置. 子进程的返回值0是通过创建pcb/env时将子进程的trapframe中的eax设置为0. 而判断fork()返回值pid的汇编指令为test %eax, %eax 
+    - 子进程由于复制了父进程的信息, ip寄存器可指明子进程开始执行的位置. 子进程的返回值0是通过创建pcb时将子进程的trapframe中的eax设置为0. 而判断fork()返回值pid的汇编指令为test %eax, %eax 
 
       - ```c
         if (pid == 0) { // test %eax, %eax . eax为0时, 将相关flag置为1, 即执行 if (pid == 0)里的指令
@@ -517,11 +517,11 @@ fork()是库函数，会调用sys_exofork(void)这个系统调用，该系统调
 
       - 
 
-    - 子进程被调度时, 从子进程pcb/env中的trapframe得到执行状态(eax == 0, ip为父进程调用fork的下一条指令), 开始执行. 
+    - 子进程被调度时, 从子进程pcb中的trapframe得到执行状态(eax == 0, ip为父进程调用fork的下一条指令), 开始执行. 
 
-## 实现**进程间通信**。
+## 4.3 **进程间通信**
 
-本质还是进入内核修改Env结构的的页映射关系。原理总结如下：![JOS IPC原理](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab4/lab4_5_IPC%E5%8E%9F%E7%90%86.png)
+本质还是进入内核调用page_insert()将接收进程的目标地址映射到发送的页对应的物理地址。原理总结如下：![JOS IPC原理](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab4/lab4_5_IPC%E5%8E%9F%E7%90%86.png)
 
 
 # 文件系统

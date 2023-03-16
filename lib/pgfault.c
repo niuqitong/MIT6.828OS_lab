@@ -34,7 +34,6 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 			panic("x stack alloc fails");
 		sys_env_set_pgfault_upcall(0, _pgfault_upcall);
 
-		// panic("set_pgfault_handler not implemented");
 	}
 
 	// Save handler pointer for assembly to call.

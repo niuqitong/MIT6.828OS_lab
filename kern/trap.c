@@ -356,7 +356,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Handle kernel-mode page faults.
 
-	// LAB 3: Your code here.
+	// LAB 3: 
 	if ((tf->tf_cs & 3) == 0) {
 		panic("kernel mode page fault\n");
 	}
@@ -392,7 +392,7 @@ page_fault_handler(struct Trapframe *tf)
 	//   To change what the user environment runs, modify 'curenv->env_tf'
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
-	// LAB 4: Your code here.
+	// LAB 4: 
 	
 	if (curenv->env_pgfault_upcall) {
 		uint32_t uxtop = UXSTACKTOP;

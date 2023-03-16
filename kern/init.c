@@ -35,7 +35,7 @@ i386_init(void)
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
-	mp_init();
+	mp_init(); // 初始化cpus数组，ncpu（总共多少可用CPU），bootcpu指针（指向BSP对应的CpuInfo结构）
 	lapic_init();
 
 	// Lab 4 multitasking initialization functions
@@ -46,7 +46,7 @@ i386_init(void)
 
 	// Starting non-boot CPUs
 	lock_kernel();
-	boot_aps();
+	boot_aps(); // 启动AP: 遍历cpus数组，一个接一个启动所有的AP
 	// unlock_kernel();
 
 	// Start fs.

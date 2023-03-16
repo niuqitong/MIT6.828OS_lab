@@ -29,7 +29,7 @@ sched_yield(void)
 	// no runnable environments, simply drop through to the code
 	// below to halt the cpu.
 
-	// LAB 4: Your code here.
+	// LAB 4: 
 
 	// struct CpuInfo* cur_cpu = cpus + cpunum();
 	int start = 0;

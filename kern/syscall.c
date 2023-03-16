@@ -86,11 +86,10 @@ sys_exofork(void)
 	if (ret < 0) {
 		return ret;
 	}
-	e->env_tf = curenv->env_tf;			//寄存器状态和当前进程一致
-	e->env_status = ENV_NOT_RUNNABLE;   //目前还不能运行
-	e->env_tf.tf_regs.reg_eax = 0;		//子进程从sys_exofork()的返回值应该为0
+	e->env_tf = curenv->env_tf;			// 复制父进程寄存器状态, 寄存器状态和当前进程一致
+	e->env_status = ENV_NOT_RUNNABLE;   // 目前还不能运行
+	e->env_tf.tf_regs.reg_eax = 0;		// 子进程从sys_exofork()的返回值应该为0
 	return e->env_id;
-	// panic("sys_exofork not implemented");
 }
 
 // Set envid's env_status to status, which must be ENV_RUNNABLE
@@ -109,21 +108,17 @@ sys_env_set_status(envid_t envid, int status)
 	// check whether the current environment has permission to set
 	// envid's status.
 
-	// LAB 4: Your code here.
+	// LAB 4:
 
 	if (status != ENV_RUNNABLE && status != ENV_NOT_RUNNABLE)
 		return -E_INVAL;
 	struct Env* target_env;
-	// if(envs[ENVX(envid)].env_id || envid2env(envid, target_env, 1) < 0)
-	// 	return -E_BAD_ENV;
 	int res = envid2env(envid, &target_env, 1);
 	if (res < 0)
 		return res;
-	// if ( || curenv->env_id)
 	target_env->env_status = status;
 	return 0;
 
-	// panic("sys_env_set_status not implemented");
 }
 
 // Set envid's trap frame to 'tf'.
@@ -136,7 +131,7 @@ sys_env_set_status(envid_t envid, int status)
 static int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 {
-	// LAB 5: Your code here.
+	// LAB 5: 
 	// Remember to check whether the user has supplied us with a good
 	// address!
 
@@ -144,15 +139,11 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	int r;
 	if ((r = envid2env(envid, &e, 0)) < 0)
 		return r;
-	// tf->tf_cs &= 3;
-	// tf->tf_eflags &= FL_IOPL_0;
-	// memcpy(&(e->env_tf), tf, sizeof(struct Trapframe));
 	tf->tf_eflags = FL_IF;
 	tf->tf_eflags &= ~FL_IOPL_MASK;			//普通进程不能有IO权限
 	tf->tf_cs = GD_UT | 3;
 	e->env_tf = *tf;
 	return 0;
-	// panic("sys_env_set_trapframe not implemented");
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -166,7 +157,7 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
-	// LAB 4: Your code here.
+	// LAB 4: 
 
 	struct Env* e;
 	int res;
@@ -175,7 +166,6 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	e->env_pgfault_upcall = func;
 	return 0;
 
-	// panic("sys_env_set_pgfault_upcall not implemented");
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -204,7 +194,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	//   If page_insert() fails, remember to free the page you
 	//   allocated!
 
-	// LAB 4: Your code here.
+	// LAB 4: 
 	struct Env* target_env;
 
 	// if(envs[ENVX(envid)].env_id || envid2env(envid, target_env, 1) < 0)
@@ -227,7 +217,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	}
 	return 0;
 
-	// panic("sys_page_alloc not implemented");
 }
 
 // Map the page of memory at 'srcva' in srcenvid's address space
@@ -257,7 +246,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	//   Use the third argument to page_lookup() to
 	//   check the current permissions on the page.
 
-	// LAB 4: Your code here.
+	// LAB 4: 
 	struct Env* target1; 
 	struct Env* target2; 
 	struct PageInfo* pg;
@@ -281,7 +270,6 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	res = page_insert(target2->env_pgdir, pg, dstva, perm);
 	return res;
 
-	// panic("sys_page_map not implemented");
 }
 
 // Unmap the page of memory at 'va' in the address space of 'envid'.
@@ -296,18 +284,16 @@ sys_page_unmap(envid_t envid, void *va)
 {
 	// Hint: This function is a wrapper around page_remove().
 
-	// LAB 4: Your code here.
+	// LAB 4: 
 
 	struct Env* e;
 	int res = envid2env(envid, &e, 1);
 	if (res < 0) return res;
 	if (va >= (void*)UTOP || ROUNDDOWN(va, PGSIZE) != va)
 		return -E_INVAL;
-	// struct PageInfo* pg;
 	page_remove(curenv->env_pgdir, va);
 	return 0;
 
-	// panic("sys_page_unmap not implemented");
 }
 
 // Try to send 'value' to the target env 'envid'.
@@ -349,8 +335,8 @@ sys_page_unmap(envid_t envid, void *va)
 //	-E_NO_MEM if there's not enough memory to map srcva in envid's
 //		address space.
 static int
-sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
-{
+sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm) {
+	// 将 value 和 srcva 地址处的页映射发送到 envid 这个进程
 	// LAB 4: Your code here.
 
 	int r;
@@ -369,9 +355,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if ((perm & PTE_W) && (!((*pte) & PTE_W))) 	return -E_INVAL;
 	}
 	if (e->env_ipc_dstva != NULL && e->env_ipc_dstva < (void*)UTOP) {
-		// if ((r = sys_page_map(0, srcva, envid, e->env_ipc_dstva, perm)) < 0) {
-		// 	return r;
-		// }
 		if ((r = page_insert(e->env_pgdir, pg, e->env_ipc_dstva, perm)) < 0)
 			return r;
 		e->env_ipc_perm = perm;
@@ -380,12 +363,9 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	e->env_ipc_from = curenv->env_id;
 	e->env_ipc_value = value;
 	e->env_status = ENV_RUNNABLE;
-	e->env_tf.tf_regs.reg_eax = 0; // 
+	e->env_tf.tf_regs.reg_eax = 0; //
 	return 0;
-
-
-
-	// panic("sys_ipc_try_send not implemented");
+	
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -400,21 +380,19 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 // Return < 0 on error.  Errors are:
 //	-E_INVAL if dstva < UTOP but dstva is not page-aligned.
 static int
-sys_ipc_recv(void *dstva)
+sys_ipc_recv(void *dstva) // 可以接收ipc, 将接收到的页映射到dstva
 {
 	// LAB 4: Your code here.
 
 	if (dstva < (void*)UTOP) {
 		if ((ROUNDDOWN(dstva, PGSIZE) != dstva))
 			return -E_INVAL;
-		// curenv->env_ipc_dstva = dstva;
 	} 
 	curenv->env_ipc_dstva = dstva;
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_ipc_recving = true;
 	sys_yield();
 
-	// panic("sys_ipc_recv not implemented");
 	return 0;
 }
 

@@ -46,7 +46,6 @@ pgfault(struct UTrapframe *utf)
 	r = sys_page_unmap(0, (void*)PFTEMP);
 	if (r < 0)
 		panic("unmap fail");
-	// panic("pgfault not implemented");
 }
 
 //
@@ -67,7 +66,6 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	
-	envid_t cur = thisenv->env_id;
 	void* addr = (void*)(pn * PGSIZE);
 	pte_t pte = uvpt[pn];
 	int perm = PTE_P | PTE_U;
@@ -86,7 +84,6 @@ duppage(envid_t envid, unsigned pn)
 		r = sys_page_map(0, addr, envid, addr, perm);
 		if (r < 0) return r;
 	}
-	// panic("duppage not implemented");
 	return 0;
 }
 
@@ -127,7 +124,7 @@ fork(void)
     }
     
     for (pn = PGNUM(UTEXT); pn < PGNUM(USTACKTOP); pn++) {
-        if ( (uvpd[pn >> 10] & PTE_P) && (uvpt[pn] & PTE_P)) {
+        if ( (uvpd[pn >> 10] & PTE_P) && (uvpt[pn] & PTE_P)) { // uvpt在lib/entry.S中初始化为UVPT
             if ( (r = duppage(envid, pn)) < 0)
                 return r;
         }
@@ -142,7 +139,6 @@ fork(void)
         panic("sys_env_set_status: %e", r);
     
     return envid;
-	// panic("fork not implemented");
 }
 
 // Challenge!
