@@ -17,6 +17,10 @@ pte_t entry_pgtable[NPTENTRIES];
 // related to linking and static initializers, we use "x + PTE_P"
 // here, rather than the more standard "x | PTE_P".  Everywhere else
 // you should use "|" to combine flags.
+
+// __attribute__用于设置特定的函数、变量或类型属性
+// __attribute__((__aligned__(PGSIZE))) 表示一个变量或类型需要按照 PGSIZE 
+// 的值进行内存对齐。
 __attribute__((__aligned__(PGSIZE)))
 pde_t entry_pgdir[NPDENTRIES] = {
 	// Map VA's [0, 4MB) to PA's [0, 4MB)

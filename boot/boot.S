@@ -53,6 +53,8 @@ seta20.2:
   # Jump to next instruction, but in 32-bit code segment.
   # Switches processor into 32-bit mode.
   ljmp    $PROT_MODE_CSEG, $protcseg
+  # ljmp 段选择子, 目标地址
+  # 首先将cs设置段选择子, 再将ip设置为目标地址
 
   .code32                     # Assemble for 32-bit mode
 protcseg:

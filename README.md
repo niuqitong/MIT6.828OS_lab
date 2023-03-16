@@ -44,6 +44,7 @@ BIOS位于从 0xF0000到0x100000的64KB
 PC启动后 cs = 0xf000, ip = 0xfff0
 BIOS执行的第一条指令就位于 cs << 4 + ip = 0xffff0处, BIOS结束位置16字节之前
 [f000:fff0]    0xffff0:	ljmp   $0xf000,$0xe05b
+ljmp 段选择子, 目标地址. 将cs设置段选择子, 将eip设置为目标地址
 
 第一条指令跳转到 0xfe05b处(BIOS前半部分)继续执行
 
@@ -56,11 +57,20 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 ## boot loader
 
 ### 从实模式切换到保护模式
+**实模式**
+- x86 处理器启动时的默认工作模式, 使用 20 位地址线，可以寻址的内存范围为 0 到 1MB。
+- 在这个模式下，内存管理依赖于段寄存器（CS，DS，ES，SS）和偏移量的组合，每个段的大小最大为 64KB。
+- 没有内存保护机制，任何程序都可以访问全部 1MB 的内存空间  
 
+**保护模式**
+- 使用 32 位地址线, 使用全局描述符表（GDT）和局部描述符表（LDT）来管理内存段
+- 提供内存保护机制，每个程序都运行在一个独立的地址空间，无法直接访问其他程序或操作系统的内存  
+
+**步骤**
 1. 开A20地址总线
 2. 将cr0最低位置为1, 表示开启保护模式
 3. 跳到下一条指令, 下一条指令在32位模式下运行
-4. 设置保护模式下的数据段寄存器?
+4. 设置保护模式下的数据段寄存器
 
 ### 从磁盘中将内核读入内存
 
@@ -81,6 +91,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 ## kernel
 
 ### entry.s
+内核被链接到虚拟地址KERNBASE + 1MB, RELOC将链接地址映射到物理地址
 
 - 设置cr3寄存器, 保存页目录物理地址
 
@@ -101,7 +112,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
     
 
-- 跳到高地址
+- 开启分页后, 跳到高地址
 
   - ```assembly
     mov	$relocated, %eax
@@ -119,7 +130,25 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
     	# now to C code
     	call	i386_init
     ```
+- 为预留的栈空间设置ebp和esp
+  ```assembly
+	movl	$0x0,%ebp			# nuke frame pointer
 
+	# Set the stack pointer
+	movl	$(bootstacktop),%esp
+	
+	# 在内核编译链接成的ELF文件中保留了KSTKSIZE字节的空间，作为栈使用
+	.data
+	###################################################################
+	# boot stack
+	###################################################################
+		.p2align	PGSHIFT		# force page alignment
+		.globl		bootstack
+	bootstack:
+		.space		KSTKSIZE
+		.globl		bootstacktop   
+	bootstacktop:
+  ```
 > **cr3**
 > Typically, the upper 20 bits of CR3 become the *page directory base register* (PDBR), which stores the physical address of the first page directory. If the PCIDE bit in CR4 is set, the lowest 12 bits are used for the process-context identifier (PCID)
 
@@ -127,7 +156,7 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 
 ### 函数调用过程
 
-1. 执行call指令前，**函数调用者**将参数入栈，按照**函数列表从右到左**的顺序入栈
+1. 执行call指令前，**函数调用者**将参数入栈，按照**参数列表从右到左**的顺序入栈
 2. call指令会自动将当前eip入栈，ret指令将自动从栈中弹出该值到eip寄存器
 3. **被调用函数**负责：将ebp入栈，esp的值赋给ebp。所以反汇编一个函数会发现开头两个指令都是`push %ebp, mov %esp,%ebp`。
 
