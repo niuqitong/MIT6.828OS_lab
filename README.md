@@ -142,10 +142,10 @@ jmp执行将CS:IP设为 0000:7c00, 将控制转移给boot loader
 - 为预留的栈空间设置ebp和esp
   ```assembly
 	movl	$0x0,%ebp			# nuke frame pointer
-
+  
 	# Set the stack pointer
 	movl	$(bootstacktop),%esp
-
+  
 	# 在内核编译链接成的ELF文件中保留了KSTKSIZE字节的空间，作为栈使用
 	.data
 	###################################################################
@@ -288,20 +288,104 @@ void page_remove(pde_t *pgdir, void *va) {
 ```
 ## 2.4 最终虚拟地址到物理地址的映射
 
-![](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab2/lab2_5_lab2%E5%90%8E%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E5%88%B0%E7%89%A9%E7%90%86%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E6%98%A0%E5%B0%84.png)
+![](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab3/lab3_1_lab3%E5%BC%80%E5%A7%8B%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E5%88%B0%E7%89%A9%E7%90%86%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4%E6%98%A0%E5%B0%84.png)
 
 
 # 3. 用户级进程
+## 系统调用/中断/异常处理入口
+
+trapentry.s
+
+```assembly
+#define TRAPHANDLER(name, num)						\
+	.globl name;		/* define global symbol for 'name' */	\
+	.type name, @function;	/* symbol type is function */		\
+	.align 2;		/* align function definition */		\
+	name:			/* function starts here */		\
+	pushl $(num);							\
+	jmp _alltraps
+.text
+	TRAPHANDLER_NOEC(th48, 48)
+_alltraps: /* tf_ss，tf_esp，tf_eflags，tf_cs，tf_eip，tf_err在中断发生时由处理器压入 */
+	pushl %ds
+	pushl %es
+	pushal
+	pushl $GD_KD
+	popl %ds
+	pushl $GD_KD
+	popl %es
+	pushl %esp // pass argument to trap() through stack
+	call trap
+```
+
+TRAPHANDLER宏用于生成中断处理程序的通用代码。这个宏接受两个参数：`name`和`num`，其中`name`表示中断处理程序的名称，`num`表示中断编号
+
+1. `#define TRAPHANDLER(name, num)`: 定义了一个名为`TRAPHANDLER`的宏，它接受两个参数：`name`和`num`。
+2. `.globl name;`: 定义了一个全局符号`name`。这意味着在其他模块或文件中也可以引用此符号。
+3. `.type name, @function;`: 将符号`name`的类型定义为函数。这有助于调试器和其他工具理解这个符号表示的是一个函数。
+4. `.align 2;`: 要求汇编器将接下来的代码对齐到2的幂次倍数（4字节）的地址。这有助于提高代码的性能，因为对齐的代码可能更适合CPU的缓存和取指行为。
+5. `name: ;`: 这是函数`name`的入口点。汇编器将在这里插入实际的中断处理程序代码。
+6. `pushl $(num);`: 将中断编号`num`压入堆栈。这样做是为了在调用通用的中断处理例程时，将中断编号作为参数传递给它。
+7. `jmp _alltraps`: 无条件跳转到`_alltraps`标签。`_alltraps`是通用的中断处理例程，它将处理所有类型的中断。由于我们已经将中断编号压入堆栈，因此`_alltraps`可以通过检查堆栈中的值来确定是哪种类型的中断触发了这个例程。
+
+### IDT
+
+IDT包含了一系列中断描述符（Interrupt Descriptor）,每个描述符都指向一个中断或异常处理程序。当CPU检测到中断或异常时，它会根据中断向量或异常向量在IDT中查找对应的中断描述符，并跳转到相应的处理程序。
+
+IDT的每个条目可以是以下类型之一：
+
+1. 任务门（Task Gate）：用于任务切换的描述符。
+2. 中断门（Interrupt Gate）：用于中断处理程序的描述符。当使用中断门时，处理器会自动关闭中断。
+3. 陷阱门（Trap Gate）：类似于中断门，但在处理器进入中断处理程序时不会自动关闭中断。
+
+IDT可以包含256个条目，对应于0-255的中断向量。每个条目占用8个字节（64位）。向量0-31是CPU保留的，用于处理不同类型的异常，如除以零、缺页等。向量32-255可用于用户自定义的硬件中断和软件中断。
+
+IDTR（Interrupt Descriptor Table Register）寄存器存储了IDT的基地址和限制。IDT的基地址是一个32位值，指向IDT的起始地址。限制是一个16位值，表示IDT的字节大小减1。
+
 ## 系统调用
 
-系统调用的完成流程：以user/hello.c为例，其中调用了cprintf()，注意这是lib/print.c中的cprintf，该cprintf()最终会调用lib/syscall.c中的sys_cputs()，sys_cputs()又会调用lib/syscall.c中的syscall()，该函数将系统调用号放入%eax寄存器，五个参数依次放入in DX, CX, BX, DI, SI，然后**执行指令int 0x30，执行了`0x30`后或者发生异常（比如除0），都会直接跳到trapentry.s中**。 发生中断后，去IDT中查找中断处理函数，最终会走到kern/trap.c的trap_dispatch()中，我们根据中断号0x30，又会调用kern/syscall.c中的syscall()函数（注意这时候我们已经进入了内核模式CPL=0），在该函数中根据系统调用号调用kern/print.c中的cprintf()函数，该函数最终调用kern/console.c中的cputchar()将字符串打印到控制台。当trap_dispatch()返回后，trap()会调用`env_run(curenv);`，该函数前面讲过，会将curenv->env_tf结构中保存的寄存器快照重新恢复到寄存器中，这样又会回到用户程序系统调用之后的那条指令运行，只是这时候已经执行了系统调用并且寄存器eax中保存着系统调用的返回值。任务完成重新回到用户模式CPL=3。
+### 为什么系统调用的DPL是3
+
+DPL（Descriptor Privilege Level）是一个描述符的属性，用于指定访问该描述符的最低特权级别。当DPL设置为3时，这意味着特权级为0、1、2和3的代码都可以访问该描述符。因此，将系统调用的DPL设置为3是为了允许特权级3的用户程序发起系统调用请求. 
+
+这样设置的目的是在保护内核和用户程序之间的边界的同时，仍然允许用户程序请求操作系统服务。用户程序无法直接访问内核态数据结构或代码，但可以通过系统调用与内核进行安全的交互。当用户程序发起系统调用时，处理器会根据特权级规则将控制权安全地传递给内核，并在完成系统调用后将控制权返回给用户程序。这种机制确保了内核安全性和系统稳定性。
+
+### 系统调用的完成流程：
+
+以user/hello.c为例，
+
+1. 其中调用了cprintf()，注意这是lib/print.c中的cprintf，该cprintf()最终会调用lib/syscall.c中的sys_cputs()，sys_cputs()又会调用lib/syscall.c中的syscall()，该函数将系统调用号放入%eax寄存器，五个参数依次放入in DX, CX, BX, DI, SI，然后**执行指令int 0x30，执行了`0x30`后或者发生异常（比如除0），都会直接跳到trapentry.s中**。 
+2. 发生中断后，去IDT中查找中断处理函数，最终会走到kern/trap.c的trap_dispatch()中，我们根据中断号0x30，又会调用kern/syscall.c中的syscall()函数（注意这时候我们已经进入了内核模式CPL=0），在该函数中根据系统调用号调用kern/print.c中的cprintf()函数，该函数最终调用kern/console.c中的cputchar()将字符串打印到控制台。
+3. 当trap_dispatch()返回后，trap()会调用`env_run(curenv);`，该函数会将curenv->env_tf结构中保存的寄存器快照重新恢复到寄存器中，这样又会回到用户程序系统调用之后的那条指令运行，只是这时候已经执行了系统调用并且寄存器eax中保存着系统调用的返回值。任务完成重新回到用户模式CPL=3。
+
+### 系统调用/缺页异常发生时的内存问题
+
+1. 用户程序进行系统调用并要访问一个地址
+
+   需要检测该地址是否合法: 是否在进程的地址空间内, 权限是否合法. 不合法则直接终止进程
+
+
+
+2. 缺页异常发生
+
+   引起缺页的线性地址是否属于该进程的地址空间？
+   -	是: 访问类型是否匹配该地址的权限？
+         o	是：合法访问，分配一个新的物理页
+         o	否：非法访问，发送一个SIGSEGV信号
+   -	否：异常发生在用户态？
+         o	是：非法访问，发送一个SIGSEGV信号
+         o	否：内核错误, 直接panic
+
+
+
+## 异常处理
 
 
 ```bash
-// 异常处理
+# 异常处理
 (gdb) info r
-eax            0x1	1
-ecx            0x0	0
+eax            0x1	1 # 被除数
+ecx            0x0	0 # 除数
 edx            0x0	0
 ebx            0x802000	8396800
 esp            0xeebfdfb0	0xeebfdfb0
@@ -317,7 +401,7 @@ es             0x23	35
 fs             0x23	35
 gs             0x23	35
 (gdb) si
-=> 0x80005c:	idiv   %ecx
+=> 0x80005c:	idiv   %ecx # eax / ecx, ecx为0, 除0指令
 0x0080005c in ?? ()
 (gdb) info r
 eax            0x1	1
@@ -330,7 +414,7 @@ esi            0x802030	8396848
 edi            0x0	0
 eip            0x80005c	0x80005c
 eflags         0x16	[ PF AF ]
-cs             0x1b	27
+cs             0x1b	27 # 0001 1011, 低2位CPL为11, 除0指令执行前还在用户态
 ss             0x23	35
 ds             0x23	35
 es             0x23	35
@@ -342,9 +426,9 @@ gs             0x23	35
 0xf000000c:	0xf000ff53	0xf000ff53	0xf000ff53	0xf000ff53
 0xf000001c:	0xf000ff53	0xf000fea5	0xf000e987	0xf000d62c
 0xf000002c:	0xf000d62c	0xf000d62c	0xf000d62c	0xf000ef57
-(gdb) si
+(gdb) si # 执行除0指令
 => 0xf01042b8 <th0+2>:	push   $0x0
-0xf01042b8 in th0 () at kern/trapentry.S:50
+0xf01042b8 in th0 () at kern/trapentry.S:50 # 进入异常处理入口
 50		TRAPHANDLER_NOEC(th0, 0)
 (gdb) x/20x 0xEFFFFFEC
 0xefffffec:	0x0080005c	0x0000001b	0x00000016	0xeebfdfb0
@@ -363,7 +447,7 @@ esi            0x802030	8396848
 edi            0x0	0
 eip            0xf01042b8	0xf01042b8 <th0+2>
 eflags         0x16	[ PF AF ]
-cs             0x8	8
+cs             0x8	8 # cpl为0, 当前在内核态
 ss             0x10	16
 ds             0x23	35
 es             0x23	35
@@ -380,8 +464,10 @@ gs             0x23	35
 
 系统调用会返回。系统调用结束后，env_run(curenv) --> env_pop_tf()恢复原进程cpu状态。其中iret会从栈中弹出eip, cs, eflags, esp, ss.
 
+<img src="https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab3/lab3_5_cpu%E6%A8%A1%E5%9E%8B.png" style="zoom:67%;" />
 
-# 开启多CPU及抢占式多任务调度
+
+# 4. 开启多CPU及抢占式多任务调度
 
 
 

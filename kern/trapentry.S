@@ -42,6 +42,7 @@
 	pushl $(num);			/*It pushes a trap number onto the stack */				\
 	jmp _alltraps
 
+/* 伪指令，用于告诉汇编器接下来的代码是可执行的程序代码（即text段） */ 
 .text
 
 /*

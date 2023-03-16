@@ -668,10 +668,6 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	uint32_t begin = ROUNDDOWN((uint32_t)va, PGSIZE);
 	uint32_t end = ROUNDUP((uint32_t)(va + len), PGSIZE);
 	while (begin < end) {
-		// if (begin >= ULIM){
-		// 	user_mem_check_addr = begin;
-		// 	return -E_FAULT;
-		// }
 		pte_t* pte = pgdir_walk(env->env_pgdir, (void*)begin, 0);
 		if ((begin >= ULIM) || !pte || !(*pte & PTE_P) || ((*pte & perm) != perm)) {
 			user_mem_check_addr = (begin < (uint32_t)va? (uint32_t)va : begin);
@@ -679,19 +675,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 		}
 		begin += PGSIZE;
 	}
-	// cprintf("user_mem_check va: %x, len: %x\n", va, len);
-	// uint32_t begin = (uint32_t) ROUNDDOWN(va, PGSIZE); 
-	// uint32_t end = (uint32_t) ROUNDUP(va+len, PGSIZE);
-	// uint32_t i;
-	// for (i = (uint32_t)begin; i < end; i += PGSIZE) {
-	// 	pte_t *pte = pgdir_walk(env->env_pgdir, (void*)i, 0);
-	// 	if ((i >= ULIM) || !pte || !(*pte & PTE_P) || ((*pte & perm) != perm)) {        //具体检测规则
-	// 		user_mem_check_addr = (i < (uint32_t)va ? (uint32_t)va : i);                //记录无效的那个线性地址
-	// 		return -E_FAULT;
-	// 	}
-	// }
-	// cprintf("user_mem_check success va: %x, len: %x\n", va, len);
-	// return 0;
+	
 	return 0;
 }
 

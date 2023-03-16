@@ -16,7 +16,6 @@
 #include <kern/spinlock.h>
 
 struct Env *envs = NULL;		// All environments
-// struct Env *curenv = NULL;		// The current executing env
 static struct Env *env_free_list;	// Free environment list, all of the inactive Env structures
 					// (linked by Env->env_link)
 
@@ -357,7 +356,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  to make sure that the environment starts executing there.
 	//  What?  (See env_run() and env_pop_tf() below.)
 
-	// LAB 3: Your code here.
 	struct Elf* elfhdr = (struct Elf*)binary;
 	if (elfhdr->e_magic != ELF_MAGIC)
 		panic("elf magic error");
@@ -379,7 +377,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 	
-	// LAB 3: Your code here.
 	region_alloc(e, (void*)(USTACKTOP - PGSIZE), PGSIZE);
 }
 
@@ -393,10 +390,6 @@ load_icode(struct Env *e, uint8_t *binary)
 void
 env_create(uint8_t *binary, enum EnvType type)
 {
-	// LAB 3: Your code here.
-
-	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
-	// LAB 5: Your code here.
 	struct Env* new_env;
 	int res = env_alloc(&new_env, 0);
 	if (res < 0) {
@@ -404,6 +397,8 @@ env_create(uint8_t *binary, enum EnvType type)
 	}
 	load_icode(new_env, binary);
 	new_env->env_type = type;
+	// If this is the file server (type == ENV_TYPE_FS), 
+	// give it I/O privileges.
 	if (type == ENV_TYPE_FS) {
 		new_env->env_tf.tf_eflags |= FL_IOPL_3;
 	}
@@ -536,7 +531,6 @@ env_run(struct Env *e)
 	//	and make sure you have set the relevant parts of
 	//	e->env_tf to sensible values.
 
-	// LAB 3: Your code here.
 	if (curenv != NULL && curenv->env_status == ENV_RUNNING) {
 		curenv->env_status = ENV_RUNNABLE;
 	}
@@ -546,6 +540,5 @@ env_run(struct Env *e)
 	lcr3(PADDR(curenv->env_pgdir)); // 
 	unlock_kernel();
 	env_pop_tf(&curenv->env_tf);
-	// panic("env_run not yet implemented");
 }
 

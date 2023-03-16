@@ -252,7 +252,7 @@ struct Taskstate {
 	uint16_t ts_iomb;	// I/O map base address
 };
 
-// Gate descriptors for interrupts and traps
+// Gate descriptors for interrupts and traps, IDT
 struct Gatedesc {
 	unsigned gd_off_15_0 : 16;   // low 16 bits of offset in segment
 	unsigned gd_sel : 16;        // segment selector
@@ -292,7 +292,7 @@ struct Gatedesc {
 	(gate).gd_off_31_16 = (uint32_t) (off) >> 16;		\
 }
 
-// Set up a call gate descriptor.
+// Set up a call gate descriptor. set idt
 #define SETCALLGATE(gate, sel, off, dpl)           	        \
 {								\
 	(gate).gd_off_15_0 = (uint32_t) (off) & 0xffff;		\

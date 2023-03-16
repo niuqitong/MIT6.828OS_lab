@@ -25,7 +25,7 @@ static struct Trapframe *last_tf;
 /* Interrupt descriptor table.  (Must be built at run time because
  * shifted function addresses can't be represented in relocation records.)
  */
-struct Gatedesc idt[256] = { { 0 } };
+struct Gatedesc idt[256] = { { 0 } }; // idt
 struct Pseudodesc idt_pd = {
 	sizeof(idt) - 1, (uint32_t) idt // limit, base
 };
@@ -71,7 +71,7 @@ trap_init(void)
 {
 	extern struct Segdesc gdt[];
 
-	// LAB 3: Your code here.
+	// LAB 3:
 	void th0();
 	void th1();
 	void th3();
@@ -98,7 +98,7 @@ trap_init(void)
 
 	void th48(); // system call
 
-	SETGATE(idt[0], 0, GD_KT, th0, 0);		//格式如下：SETGATE(gate, istrap, sel, off, dpl)，定义在inc/mmu.h中
+	SETGATE(idt[0], 0, GD_KT, th0, 0);	//格式如下：SETGATE(gate, istrap, sel, off, dpl)，定义在inc/mmu.h中
 	SETGATE(idt[1], 0, GD_KT, th1, 0);  //设置idt[1]，段选择子为内核代码段，段内偏移为th1
 	SETGATE(idt[3], 0, GD_KT, th3, 3);
 	SETGATE(idt[4], 0, GD_KT, th4, 0);
@@ -114,7 +114,7 @@ trap_init(void)
 	SETGATE(idt[14], 0, GD_KT, th14, 0);
 	SETGATE(idt[16], 0, GD_KT, th16, 0);
 
-	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, timer, 3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 	0, GD_KT, timer, 3);
 	SETGATE(idt[IRQ_OFFSET + IRQ_KBD],      0, GD_KT, kbd,     3);
     SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL],   0, GD_KT, serial,  3);
     SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, spurious, 3);
