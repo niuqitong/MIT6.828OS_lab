@@ -521,7 +521,7 @@ fork()是库函数，会调用sys_exofork(void)这个系统调用，该系统调
 
 ## 4.3 **进程间通信**
 
-本质还是进入内核调用page_insert()将接收进程的目标地址映射到发送的页对应的物理地址。原理总结如下：![JOS IPC原理](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab4/lab4_5_IPC%E5%8E%9F%E7%90%86.png)
+通过系统调用进入内核调用page_insert()将接收进程的目标地址映射到发送的页对应的物理地址。原理总结如下：![JOS IPC原理](https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab4/lab4_5_IPC%E5%8E%9F%E7%90%86.png)
 
 
 # 文件系统
@@ -550,8 +550,7 @@ triple-indirect blocks as well.
 
 ## block cache
 
-Of course, it would take a long time to read the entire disk into memory, so instead we'll implement a form of **demand** **paging**, wherein we only allocate pages in the disk map region and read the corresponding block from the disk in response to
-a page fault in this region. This way, we can pretend that the entire disk is in memory.
+Of course, it would take a long time to read the entire disk into memory, so instead we'll implement a form of **demand** **paging**, wherein we only allocate pages in the disk map region and read the corresponding block from the disk in response to a page fault in this region. This way, we can pretend that the entire disk is in memory.
 
 ## FS env
 
@@ -564,8 +563,13 @@ FS env将整个disk映射到自己的内存空间`[DISKMAP, DISKMAP + DISKMAX), 
 ## RPC via IPC
 
 文件系统服务端代码在fs/serv.c中，serve()中有一个无限循环，接收IPC请求，将对应的请求分配到对应的处理函数，然后将结果通过IPC发送回去。
-对于客户端来说：发送一个32位的值作为请求类型，发送一个Fsipc结构作为请求参数，该数据结构通过IPC的页共享发给FS进程，在FS进程可以通过访问fsreq(0x0ffff000)来访问客户进程发来的Fsipc结构。
-对于服务端来说：FS进程返回一个32位的值作为返回码，对于FSREQ_READ和FSREQ_STAT这两种请求类型，还额外通过IPC返回一些数据。
+对于客户端来说：发送一个32位的值作为请求类型，发送一个Fsipc结构作为请求参数(请求类型, 文件名, 文件描述符, 读写的字节数等)，该数据结构通过IPC的页共享发给FS进程，在FS进程可以通过访问fsreq(0x0ffff000)来访问客户进程发来的Fsipc结构。
+
+对于服务端来说：FS进程返回一个32位的值作为返回码
+
+- 对于open请求, 成功返回值为0, 并将文件对应的fd地址赋给传出参数
+- 对于read请求, 将请求读的字节写到fsreq->Fsreat_ret.ret_buf里即可, 因为fsreq和请求进程发出的fsreq指向同一个物理页
+- 对于write, 将fsreq->Fsreq_write.req_buf的内容写到指定文件(从该文件的offs开始)中
 
 
 
@@ -573,7 +577,7 @@ FS env将整个disk映射到自己的内存空间`[DISKMAP, DISKMAP + DISKMAX), 
 
 ## spawn()
 
-ib/spawn.c中的spawn()创建一个新的进程，从文件系统加载用户程序，然后启动该进程来运行这个程序。spawn()就像UNIX中的fork()后面马上跟着exec()。
+lib/spawn.c中的spawn()创建一个新的进程，从文件系统加载用户程序，然后启动该进程来运行这个程序。spawn()就像UNIX中的fork()后面马上跟着exec()。
 `spawn(const char *prog, const char **argv)`做如下一系列动作：
 
 1. 从文件系统打开prog程序文件

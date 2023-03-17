@@ -113,7 +113,7 @@ fs_init(void)
 		ide_set_disk(1);
 	else
 		ide_set_disk(0);
-	bc_init();
+	bc_init(); // 单独设置fs进程的缺页处理函数, 缺页时从磁盘读
 
 	// Set "super" to point to the super block.
 	super = diskaddr(1);
@@ -167,7 +167,6 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 		}
 	}
 	return 0;
-    //    panic("file_block_walk not implemented");
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -196,8 +195,6 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 	*blk = diskaddr(*pdiskbno);
 
 	return 0;
-
-    //    panic("file_get_block not implemented");
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
